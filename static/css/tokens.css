@@ -1,0 +1,17 @@
+/* Design tokens — all colors, spacing and radii live here (Faz 4 fills this out). */
+:root {
+  --color-bg: #FBFAF7;
+  --color-surface: #FFFFFF;
+  --color-text: #1F1B2E;
+  --color-text-muted: #5B5670;
+  --color-primary: #6C4DF6;
+
+  --font-sans: "Plus Jakarta Sans", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+
+  --space-2: 0.5rem;
+  --space-4: 1rem;
+  --space-6: 1.5rem;
+
+  --radius-card: 18px;
+  --content-width: 640px;
+}

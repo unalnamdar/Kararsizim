@@ -1,0 +1,25 @@
+{% load static %}<!doctype html>
+<html lang="tr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}Kararsızım{% endblock %}</title>
+  <meta name="description" content="{% block description %}Kararsız mı kaldın? Sor, topluluk oylasın.{% endblock %}">
+  {% block meta %}{% endblock %}
+  <link rel="stylesheet" href="{% static 'css/tokens.css' %}">
+  <link rel="stylesheet" href="{% static 'css/main.css' %}">
+</head>
+<body>
+  <header class="site-header">
+    <div class="container site-header__inner">
+      <a class="logo" href="{% url 'polls:feed' %}">Kararsızım</a>
+    </div>
+  </header>
+
+  <main class="container" id="main">
+    {% block content %}{% endblock %}
+  </main>
+
+  {% block scripts %}{% endblock %}
+</body>
+</html>
