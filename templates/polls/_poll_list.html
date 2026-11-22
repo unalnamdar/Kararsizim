@@ -1,0 +1,9 @@
+{% for poll in polls %}
+  {% include "polls/_poll_card.html" with link_question=True %}
+{% endfor %}
+
+{% if next_page %}
+  <p class="load-more">
+    <a class="button button--secondary" href="?sayfa={{ next_page }}">Daha fazla</a>
+  </p>
+{% endif %}

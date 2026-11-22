@@ -1,0 +1,30 @@
+{% load humanize %}
+<article class="card poll-card" aria-labelledby="poll-{{ poll.pk }}-question">
+  <p class="poll-card__meta">
+    <span class="poll-card__author">@{{ poll.author.username }}</span>
+    · <time datetime="{{ poll.created_at|date:'c' }}">{{ poll.created_at|naturaltime }}</time>
+  </p>
+
+  {% if link_question %}
+    <h2 class="poll-card__question" id="poll-{{ poll.pk }}-question"><a href="{{ poll.get_absolute_url }}">{{ poll.question }}</a></h2>
+  {% else %}
+    <h1 class="poll-card__question" id="poll-{{ poll.pk }}-question">{{ poll.question }}</h1>
+  {% endif %}
+
+  <ol class="options">
+    {% for option in poll.options.all %}
+      <li class="option option--{{ option.position }}">{{ option.text }}</li>
+    {% endfor %}
+  </ol>
+
+  {% if show_delete and user.is_authenticated and poll.author_id == user.pk %}
+    <details class="poll-card__delete">
+      <summary>Anketi sil</summary>
+      <form method="post" action="{% url 'polls:delete' poll.pk %}">
+        {% csrf_token %}
+        <p>Bu anket ve tüm oyları kalıcı olarak silinecek. Emin misin?</p>
+        <button type="submit" class="button button--danger button--small">Evet, sil</button>
+      </form>
+    </details>
+  {% endif %}
+</article>

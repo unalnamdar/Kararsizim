@@ -1,0 +1,55 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Anket oluştur · Kararsızım{% endblock %}
+
+{% block content %}
+  <section class="card">
+    <h1 class="page-title">Anket oluştur</h1>
+
+    <form method="post" novalidate data-poll-form data-min-options="2" data-max-options="5">
+      {% csrf_token %}
+      {% include "includes/form_field.html" with field=form.question %}
+
+      <fieldset class="options-fieldset">
+        <legend>Seçenekler <span class="muted">(2–5)</span></legend>
+
+        {% if form.option_errors %}
+          <div class="form-error" role="alert">
+            {% for error in form.option_errors %}<p>{{ error }}</p>{% endfor %}
+          </div>
+        {% endif %}
+
+        <ol class="option-inputs" data-option-list>
+          {% for value in form.option_fields %}
+            <li class="option-input option--{{ forloop.counter0 }}" data-option-row>
+              <label for="option-{{ forloop.counter }}">Seçenek {{ forloop.counter }}</label>
+              <div class="option-input__row">
+                <input type="text" id="option-{{ forloop.counter }}" name="options" value="{{ value }}" maxlength="80" autocomplete="off" required>
+                <button type="button" class="icon-button" data-remove-option hidden aria-label="Kaldır: Seçenek {{ forloop.counter }}">×</button>
+              </div>
+            </li>
+          {% endfor %}
+        </ol>
+
+        <template data-option-template>
+          <li class="option-input" data-option-row>
+            <label></label>
+            <div class="option-input__row">
+              <input type="text" name="options" maxlength="80" autocomplete="off" required>
+              <button type="button" class="icon-button" data-remove-option aria-label="Seçeneği kaldır">×</button>
+            </div>
+          </li>
+        </template>
+
+        <button type="button" class="button button--secondary button--small" data-add-option hidden>+ Seçenek ekle</button>
+      </fieldset>
+
+      <button type="submit" class="button button--block">Yayınla</button>
+    </form>
+  </section>
+{% endblock %}
+
+{% block scripts %}
+  <script src="{% static 'js/poll-form.js' %}" defer></script>
+{% endblock %}

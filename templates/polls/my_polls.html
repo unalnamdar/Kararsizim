@@ -1,0 +1,23 @@
+{% extends "base.html" %}
+
+{% block title %}Anketlerim · Kararsızım{% endblock %}
+
+{% block content %}
+  <h1 class="page-title">Anketlerim</h1>
+
+  {% if polls %}
+    {% for poll in polls %}
+      {% include "polls/_poll_card.html" with link_question=True show_delete=True %}
+    {% endfor %}
+    {% if next_page %}
+      <p class="load-more">
+        <a class="button button--secondary" href="?sayfa={{ next_page }}">Daha fazla</a>
+      </p>
+    {% endif %}
+  {% else %}
+    <section class="card empty-state">
+      <p>Henüz anket açmadın.</p>
+      <a class="button" href="{% url 'polls:create' %}">İlk anketini oluştur</a>
+    </section>
+  {% endif %}
+{% endblock %}

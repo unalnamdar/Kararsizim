@@ -1,6 +1,14 @@
 {% extends "base.html" %}
 
 {% block content %}
-  <h1 class="page-title">Kararsızım</h1>
-  <p class="empty-state">Henüz anket yok. İlk kararsız sen ol!</p>
+  <h1 class="visually-hidden">Kararsızım — en yeni anketler</h1>
+
+  {% if polls %}
+    {% include "polls/_poll_list.html" %}
+  {% else %}
+    <section class="card empty-state">
+      <p>Henüz anket yok. İlk kararsız sen ol!</p>
+      <a class="button" href="{% url 'polls:create' %}">Anket oluştur</a>
+    </section>
+  {% endif %}
 {% endblock %}

@@ -1,0 +1,8 @@
+{% extends "base.html" %}
+
+{% block title %}{{ poll.question }} · Kararsızım{% endblock %}
+
+{% block content %}
+  {% include "polls/_poll_card.html" with link_question=False show_delete=True %}
+  <p><a href="{% url 'polls:feed' %}">← Tüm anketler</a></p>
+{% endblock %}
