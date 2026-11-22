@@ -1,0 +1,24 @@
+{% extends "base.html" %}
+
+{% block title %}Giriş yap · Kararsızım{% endblock %}
+
+{% block content %}
+  <section class="card auth-card">
+    <h1 class="page-title">Giriş yap</h1>
+
+    <form method="post" novalidate>
+      {% csrf_token %}
+      {% if next %}<input type="hidden" name="next" value="{{ next }}">{% endif %}
+      {% for error in form.non_field_errors %}<p class="form-error" role="alert">{{ error }}</p>{% endfor %}
+      {% for field in form %}
+        {% include "includes/form_field.html" %}
+      {% endfor %}
+      <button type="submit" class="button button--block">Giriş yap</button>
+    </form>
+
+    <p class="muted auth-card__switch">
+      Hesabın yok mu?
+      <a href="{% url 'accounts:signup' %}{% if next %}?next={{ next|urlencode }}{% endif %}">Kayıt ol</a>
+    </p>
+  </section>
+{% endblock %}

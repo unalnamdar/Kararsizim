@@ -1,4 +1,4 @@
-/* Uses only variables from tokens.css. */
+/* Uses only variables from tokens.css. Full design comes in Faz 4. */
 *, *::before, *::after { box-sizing: border-box; }
 
 body {
@@ -9,15 +9,31 @@ body {
   line-height: 1.5;
 }
 
+a { color: var(--color-primary-dark); }
+
+:focus-visible {
+  outline: 3px solid var(--color-focus);
+  outline-offset: 2px;
+}
+
 .container {
   max-width: var(--content-width);
   margin: 0 auto;
   padding: 0 var(--space-4);
 }
 
+/* Header */
 .site-header {
   background: var(--color-surface);
-  padding: var(--space-4) 0;
+  border-bottom: 1px solid var(--color-border);
+  padding: var(--space-3) 0;
+}
+
+.site-header__inner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-4);
 }
 
 .logo {
@@ -27,6 +43,98 @@ body {
   text-decoration: none;
 }
 
-.page-title { margin: var(--space-6) 0 var(--space-2); }
+.site-nav {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+}
 
-.empty-state { color: var(--color-text-muted); }
+.site-nav__user { font-weight: 600; }
+
+.inline-form { display: inline; margin: 0; }
+
+/* Buttons */
+.button {
+  display: inline-block;
+  border: 0;
+  border-radius: var(--radius-pill);
+  background: var(--color-primary);
+  color: var(--color-on-primary);
+  font: inherit;
+  font-weight: 700;
+  padding: var(--space-3) var(--space-6);
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.button:hover { background: var(--color-primary-dark); }
+.button--small { padding: var(--space-1) var(--space-4); }
+.button--block { display: block; width: 100%; }
+
+.link-button {
+  border: 0;
+  background: none;
+  padding: 0;
+  color: var(--color-primary-dark);
+  font: inherit;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+/* Cards & text */
+.card {
+  background: var(--color-surface);
+  border-radius: var(--radius-card);
+  box-shadow: var(--shadow-card);
+  padding: var(--space-6);
+  margin: var(--space-6) 0;
+}
+
+.page-title { margin: var(--space-6) 0 var(--space-2); }
+.card .page-title { margin-top: 0; }
+.muted, .empty-state { color: var(--color-text-muted); }
+
+/* Forms */
+.field { margin-bottom: var(--space-4); }
+
+.field label {
+  display: block;
+  font-weight: 600;
+  margin-bottom: var(--space-1);
+}
+
+.field input {
+  width: 100%;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-control);
+  background: var(--color-surface);
+  color: var(--color-text);
+  font: inherit;
+  padding: var(--space-3);
+}
+
+.field--error input { border-color: var(--color-danger); }
+.field__help { color: var(--color-text-muted); font-size: 0.875rem; margin: var(--space-1) 0 0; }
+.field__help ul { margin: 0; padding-left: var(--space-4); }
+.field__error { color: var(--color-danger); font-size: 0.875rem; margin: var(--space-1) 0 0; }
+
+.form-error {
+  background: var(--color-danger-soft);
+  color: var(--color-danger);
+  border-radius: var(--radius-control);
+  padding: var(--space-3);
+}
+
+.auth-card__switch { margin-bottom: 0; text-align: center; }
+
+/* Messages */
+.messages { list-style: none; padding: 0; margin: var(--space-4) 0 0; }
+
+.message {
+  border-radius: var(--radius-control);
+  padding: var(--space-3) var(--space-4);
+  background: var(--color-info-soft);
+}
+
+.message--success { background: var(--color-success-soft); color: var(--color-success); }
+.message--error { background: var(--color-danger-soft); color: var(--color-danger); }

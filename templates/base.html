@@ -13,10 +13,29 @@
   <header class="site-header">
     <div class="container site-header__inner">
       <a class="logo" href="{% url 'polls:feed' %}">Kararsızım</a>
+      <nav class="site-nav" aria-label="Hesap">
+        {% if user.is_authenticated %}
+          <span class="site-nav__user">@{{ user.username }}</span>
+          <form method="post" action="{% url 'accounts:logout' %}" class="inline-form">
+            {% csrf_token %}
+            <button type="submit" class="link-button">Çıkış</button>
+          </form>
+        {% else %}
+          <a href="{% url 'accounts:login' %}{% if request.path != '/' and request.resolver_match.app_name != 'accounts' %}?next={{ request.get_full_path|urlencode }}{% endif %}">Giriş</a>
+          <a class="button button--small" href="{% url 'accounts:signup' %}">Kayıt ol</a>
+        {% endif %}
+      </nav>
     </div>
   </header>
 
   <main class="container" id="main">
+    {% if messages %}
+      <ul class="messages" role="status">
+        {% for message in messages %}
+          <li class="message message--{{ message.tags }}">{{ message }}</li>
+        {% endfor %}
+      </ul>
+    {% endif %}
     {% block content %}{% endblock %}
   </main>
 

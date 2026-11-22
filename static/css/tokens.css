@@ -4,14 +4,28 @@
   --color-surface: #FFFFFF;
   --color-text: #1F1B2E;
   --color-text-muted: #5B5670;
+  --color-border: #E4E1EC;
   --color-primary: #6C4DF6;
+  --color-primary-dark: #4F32D6;
+  --color-on-primary: #FFFFFF;
+  --color-focus: #6C4DF6;
+  --color-danger: #B42318;
+  --color-danger-soft: #FDECEA;
+  --color-success: #1E6B3A;
+  --color-success-soft: #E6F5EB;
+  --color-info-soft: #EFEBFE;
 
   --font-sans: "Plus Jakarta Sans", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
 
+  --space-1: 0.25rem;
   --space-2: 0.5rem;
+  --space-3: 0.75rem;
   --space-4: 1rem;
   --space-6: 1.5rem;
 
   --radius-card: 18px;
+  --radius-control: 12px;
+  --radius-pill: 999px;
+  --shadow-card: 0 2px 12px rgba(31, 27, 46, 0.06);
   --content-width: 640px;
 }
