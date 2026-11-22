@@ -1,0 +1,12 @@
+{# Keep this markup in sync with renderResults() in static/js/vote.js #}
+<ol class="options options--results" aria-label="Sonuçlar">
+  {% for item in results.options %}
+    <li class="option option--{{ item.position }} option--result{% if item.selected %} is-selected{% endif %}">
+      <span class="option__fill" style="width: {{ item.percent }}%" aria-hidden="true"></span>
+      <span class="option__label">
+        {{ item.text }}{% if item.selected %} <span class="option__check" aria-hidden="true">✓</span><span class="visually-hidden">(senin seçimin)</span>{% endif %}
+      </span>
+      <span class="option__value"><strong>%{{ item.percent }}</strong> · {{ item.votes }} oy</span>
+    </li>
+  {% endfor %}
+</ol>

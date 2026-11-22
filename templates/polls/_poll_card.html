@@ -1,5 +1,5 @@
 {% load humanize %}
-<article class="card poll-card" aria-labelledby="poll-{{ poll.pk }}-question">
+<article class="card poll-card" aria-labelledby="poll-{{ poll.pk }}-question" data-poll="{{ poll.pk }}">
   <p class="poll-card__meta">
     <span class="poll-card__author">@{{ poll.author.username }}</span>
     · <time datetime="{{ poll.created_at|date:'c' }}">{{ poll.created_at|naturaltime }}</time>
@@ -11,13 +11,32 @@
     <h1 class="poll-card__question" id="poll-{{ poll.pk }}-question">{{ poll.question }}</h1>
   {% endif %}
 
-  <ol class="options">
-    {% for option in poll.options.all %}
-      <li class="option option--{{ option.position }}">{{ option.text }}</li>
-    {% endfor %}
-  </ol>
+  {% if poll.show_results %}
+    {% include "polls/_results.html" with results=poll.results %}
+  {% else %}
+    <form method="post" action="{% url 'polls:vote' poll.pk %}" class="vote-form" data-vote-form>
+      {% csrf_token %}
+      <ol class="options" aria-label="Seçenekler — birini seçerek oy ver">
+        {% for option in poll.options.all %}
+          <li class="option option--{{ option.position }}">
+            <button type="submit" name="option_id" value="{{ option.pk }}" class="option__button">{{ option.text }}</button>
+          </li>
+        {% endfor %}
+      </ol>
+    </form>
+  {% endif %}
 
-  {% if show_delete and user.is_authenticated and poll.author_id == user.pk %}
+  <p class="poll-card__error" role="alert" data-poll-error hidden></p>
+
+  <p class="poll-card__footer" data-poll-footer>
+    {% if poll.show_results %}
+      <span data-poll-total>{{ poll.results.total }}</span> oy{% if poll.is_owner %} · Senin anketin{% endif %}
+    {% else %}
+      Oy ver, sonuçları gör
+    {% endif %}
+  </p>
+
+  {% if show_delete and poll.is_owner %}
     <details class="poll-card__delete">
       <summary>Anketi sil</summary>
       <form method="post" action="{% url 'polls:delete' poll.pk %}">

@@ -53,3 +53,48 @@ class Option(models.Model):
 
     def __str__(self):
         return self.text
+
+
+class Vote(models.Model):
+    """One vote per person per poll.
+
+    `user` is set for members. `voter_key` holds the signed `voter_id` cookie value and is
+    stored for every vote (members included), so the same browser is recognised even after
+    logging in or out.
+    """
+
+    poll = models.ForeignKey(Poll, on_delete=models.CASCADE, related_name="votes", verbose_name="anket")
+    option = models.ForeignKey(Option, on_delete=models.CASCADE, related_name="votes", verbose_name="seçenek")
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+        related_name="votes",
+        verbose_name="üye",
+    )
+    voter_key = models.CharField("ziyaretçi kimliği", max_length=36, null=True, blank=True)
+    created_at = models.DateTimeField("oy zamanı", auto_now_add=True)
+
+    class Meta:
+        verbose_name = "oy"
+        verbose_name_plural = "oylar"
+        constraints = [
+            models.UniqueConstraint(
+                fields=["poll", "user"],
+                condition=models.Q(user__isnull=False),
+                name="polls_vote_unique_user",
+            ),
+            models.UniqueConstraint(
+                fields=["poll", "voter_key"],
+                condition=models.Q(voter_key__isnull=False),
+                name="polls_vote_unique_voter_key",
+            ),
+            models.CheckConstraint(
+                condition=models.Q(user__isnull=False) | models.Q(voter_key__isnull=False),
+                name="polls_vote_has_identity",
+            ),
+        ]
+
+    def __str__(self):
+        return f"{self.poll_id} → {self.option_id}"

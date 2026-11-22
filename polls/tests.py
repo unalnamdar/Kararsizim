@@ -162,7 +162,7 @@ class FeedTests(TestCase):
         for i in range(5):
             make_poll(make_user(f"user{i}"))
         self.client.force_login(self.author)
-        with self.assertNumQueries(4):  # session, user, polls+authors, options
+        with self.assertNumQueries(5):  # session, user, polls+authors, options+counts, own votes
             self.client.get("/")
 
 

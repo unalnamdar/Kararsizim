@@ -1,6 +1,6 @@
 from django.contrib import admin
 
-from .models import Option, Poll
+from .models import Option, Poll, Vote
 
 
 class OptionInline(admin.TabularInline):
@@ -25,3 +25,12 @@ class OptionAdmin(admin.ModelAdmin):
     list_select_related = ("poll",)
     search_fields = ("text", "poll__question")
     raw_id_fields = ("poll",)
+
+
+@admin.register(Vote)
+class VoteAdmin(admin.ModelAdmin):
+    list_display = ("poll", "option", "user", "voter_key", "created_at")
+    list_select_related = ("poll", "option", "user")
+    search_fields = ("poll__question", "user__username", "voter_key")
+    raw_id_fields = ("poll", "option", "user")
+    date_hierarchy = "created_at"

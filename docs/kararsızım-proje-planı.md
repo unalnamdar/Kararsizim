@@ -26,7 +26,7 @@ Kullanım: kullanıcı "Faz 1'i uygula" gibi bir komut verir.
 ### Netleştirilen kararlar (2026-11-17)
 
 1. **Toplam oy sayısı da sonuçtur.** Oy vermemiş kişi hiçbir sayı görmez (toplam dahil); HTML ve JSON'da yer almaz. Kart altında bunun yerine "Oy ver, sonuçları gör" gibi bir metin gösterilir. Sayıları yalnızca oy vermiş kişi ve anket sahibi görür.
-2. **Misafir → üye geçişi.** Giriş yapmış kullanıcıda "oy verdi mi?" kontrolü hem `user` hem de tarayıcıdaki `voter_id` çereziyle yapılır. O çerezle daha önce oy verilmişse "zaten oy verdin" sayılır (`409`) ve sonuçlar görünür. Sahip çıkış yapıp kendi anketine misafir olarak oy verirse engellenemez — bilinen sınır.
+2. **Misafir → üye geçişi.** Giriş yapmış kullanıcıda "oy verdi mi?" kontrolü hem `user` hem de tarayıcıdaki `voter_id` çereziyle yapılır. O çerezle daha önce oy verilmişse "zaten oy verdin" sayılır (`409`) ve sonuçlar görünür. Bunun için `voter_id` çerezi üye oylarında da üretilir ve `voter_key` **her oyda** (üye oyu dahil) saklanır; böylece üye oy verip çıkış yaparsa aynı tarayıcıdan misafir olarak tekrar oy veremez. Bedeli: aynı tarayıcıyı paylaşan iki üyeden yalnızca biri aynı ankete oy verebilir (kabul edildi). Sahip çıkış yapıp kendi anketine misafir olarak oy verirse engellenemez — bilinen sınır.
 3. **Oy yeri.** Hem akıştaki kartlardan hem detay sayfasından oy verilebilir; sonuçlar kartın içinde yerinde açılır.
 4. **Git.** Ana dal `main`, remote `origin` (GitHub: `unalnamdar/Kararsizim`). Her faz kabul kriterleri sağlanınca tek commit atılır ve `main` pushlanır.
 

@@ -16,12 +16,12 @@
   --color-info-soft: #EFEBFE;
 
   /* Option palette, in order: purple, coral, teal, yellow, green.
-     -soft = ~10% tint background, -base = border, -strong = text on tint. */
-  --opt-0-soft: #F0ECFE; --opt-0-base: #6C4DF6; --opt-0-strong: #3F25B8;
-  --opt-1-soft: #FFEDEA; --opt-1-base: #FF6B57; --opt-1-strong: #A8321F;
-  --opt-2-soft: #E3F7F5; --opt-2-base: #14B8A6; --opt-2-strong: #0B6B61;
-  --opt-3-soft: #FFF6D9; --opt-3-base: #F5B700; --opt-3-strong: #7A5A00;
-  --opt-4-soft: #E6F6EA; --opt-4-base: #22A447; --opt-4-strong: #17672E;
+     -soft = ~10% tint background, -fill = result bar, -base = border, -strong = text on tint. */
+  --opt-0-fill: #DCD3FD; --opt-0-soft: #F0ECFE; --opt-0-base: #6C4DF6; --opt-0-strong: #3F25B8;
+  --opt-1-fill: #FFD3CC; --opt-1-soft: #FFEDEA; --opt-1-base: #FF6B57; --opt-1-strong: #A8321F;
+  --opt-2-fill: #BFEDE7; --opt-2-soft: #E3F7F5; --opt-2-base: #14B8A6; --opt-2-strong: #0B6B61;
+  --opt-3-fill: #FFE8A3; --opt-3-soft: #FFF6D9; --opt-3-base: #F5B700; --opt-3-strong: #7A5A00;
+  --opt-4-fill: #C6EBCF; --opt-4-soft: #E6F6EA; --opt-4-base: #22A447; --opt-4-strong: #17672E;
 
   --font-sans: "Plus Jakarta Sans", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
 
@@ -34,6 +34,7 @@
   --radius-card: 18px;
   --radius-control: 12px;
   --radius-pill: 999px;
+  --duration-fill: 700ms;
   --shadow-card: 0 2px 12px rgba(31, 27, 46, 0.06);
   --content-width: 640px;
 }
