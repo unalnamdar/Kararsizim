@@ -29,6 +29,8 @@ Kullanım: kullanıcı "Faz 1'i uygula" gibi bir komut verir.
 2. **Misafir → üye geçişi.** Giriş yapmış kullanıcıda "oy verdi mi?" kontrolü hem `user` hem de tarayıcıdaki `voter_id` çereziyle yapılır. O çerezle daha önce oy verilmişse "zaten oy verdin" sayılır (`409`) ve sonuçlar görünür. Bunun için `voter_id` çerezi üye oylarında da üretilir ve `voter_key` **her oyda** (üye oyu dahil) saklanır; böylece üye oy verip çıkış yaparsa aynı tarayıcıdan misafir olarak tekrar oy veremez. Bedeli: aynı tarayıcıyı paylaşan iki üyeden yalnızca biri aynı ankete oy verebilir (kabul edildi). Sahip çıkış yapıp kendi anketine misafir olarak oy verirse engellenemez — bilinen sınır.
 3. **Oy yeri.** Hem akıştaki kartlardan hem detay sayfasından oy verilebilir; sonuçlar kartın içinde yerinde açılır.
 4. **Git.** Ana dal `main`, remote `origin` (GitHub: `unalnamdar/Kararsizim`). Her faz kabul kriterleri sağlanınca tek commit atılır ve `main` pushlanır.
+5. **Tasarım: kontrast öncelikli palet (Faz 4).** WCAG AA ölçülerek uygulandı (`config/test_design.py` her çalıştırmada denetler). Seçenek **kenarlıkları** arayüz bileşeni sayıldığı için ≥3:1 gerektiriyordu; mercan, turkuaz ve özellikle sarı koyulaştırıldı (sarı kenarlık hardal tonu `#B38500`; çubuk dolgusu ve zemin tonu parlak sarı kalır). Form alanı kenarlığı ve odak halkası da aynı nedenle koyu tonda.
+6. **Tasarım: dar ekran başlığı (Faz 4).** 360px'de başlık tek satır kalsın diye: "Anket oluştur" düğmesi "+ Anket"e kısalır, üye menüsü baş harfli yuvarlak düğme olur, misafirde "Kayıt ol" bağlantısı başlıktan kalkar (giriş sayfasındaki "Kayıt ol" bağlantısından erişilir). 30em ve üstünde hepsi tam görünür.
 
 ### Kapsam dışı (prototipte yapma)
 

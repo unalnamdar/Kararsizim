@@ -1,6 +1,9 @@
 {% extends "base.html" %}
 
 {% block title %}{{ poll.question }} · Kararsızım{% endblock %}
+{% block description %}{{ share_description }}{% endblock %}
+{% block og_title %}{{ poll.question }}{% endblock %}
+{% block og_description %}{{ share_description }}{% endblock %}
 
 {% block content %}
   {% include "polls/_poll_card.html" with link_question=False show_delete=True %}

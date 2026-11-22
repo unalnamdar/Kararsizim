@@ -6,6 +6,7 @@ from django.core.exceptions import PermissionDenied
 from django.db import IntegrityError, transaction
 from django.http import Http404, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
+from django.utils.text import Truncator
 from django.views.decorators.http import require_http_methods, require_POST
 
 from . import voting
@@ -45,10 +46,16 @@ def feed(request):
     return render(request, "polls/feed.html", _paginate(request, _poll_queryset()))
 
 
+def _share_description(poll):
+    """Text for link previews. Lists the options only, never any vote counts or percentages."""
+    options = Truncator(" · ".join(option.text for option in poll.options.all())).chars(150)
+    return f"{options} — Oy ver, sonuçları gör."
+
+
 def detail(request, poll_id):
     poll = get_object_or_404(_poll_queryset(), pk=poll_id)
     voting.annotate_for_viewer(request, [poll])
-    return render(request, "polls/detail.html", {"poll": poll})
+    return render(request, "polls/detail.html", {"poll": poll, "share_description": _share_description(poll)})
 
 
 @login_required

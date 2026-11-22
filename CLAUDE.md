@@ -31,7 +31,7 @@ DEBUG=False SECRET_KEY=<uzun-rastgele> .venv/Scripts/python.exe manage.py check 
 - `DATABASE_URL` boşsa yerel `db.sqlite3` kullanılır. Supabase migration'ları yerelden, Session pooler (5432) ile uygulanır; Vercel build'inde migration çalıştırılmaz.
 - Supabase projesi: `kararsizim` (ref `wtkfxgntvoznkczsckke`, eu-central-1). Session pooler host'u `aws-1-eu-central-1.pooler.supabase.com` (aws-0 değil). Yerel `.env` bu projeye bağlı.
 - `public` şemasındaki tüm tablolarda RLS açık (politikasız) ve `anon`/`authenticated` yetkileri geri alındı; Django tablo sahibi olduğu için etkilenmez. **Yeni tablo oluşturan her migration'dan sonra** o tabloda da RLS aç (`alter table public.<tablo> enable row level security;`) ve Supabase güvenlik uyarılarını kontrol et.
-- Testleri Supabase'e karşı çalıştırırken `--keepdb` kullan (pooler açık bağlantı tuttuğu için `test_postgres` silinemiyor; ~3 dk sürer). Günlük geliştirmede `DATABASE_URL` boş bırakılıp SQLite ile test etmek daha hızlıdır.
+- Testleri Supabase'e karşı çalıştırırken `--keepdb` kullan (pooler açık bağlantı tuttuğu için `test_postgres` silinemiyor; ~3 dk sürer). Günlük geliştirmede SQLite ile test etmek daha hızlıdır: `.env`'e dokunmadan komutun önüne boş değişken koy, ör. `DATABASE_URL= .venv/Scripts/python.exe manage.py test` (ortamdaki boş değer `.env`'i ezer).
 
 ## Git
 

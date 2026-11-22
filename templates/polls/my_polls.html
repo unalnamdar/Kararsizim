@@ -16,6 +16,7 @@
     {% endif %}
   {% else %}
     <section class="card empty-state">
+      <p class="empty-state__icon" aria-hidden="true">📝</p>
       <p>Henüz anket açmadın.</p>
       <a class="button" href="{% url 'polls:create' %}">İlk anketini oluştur</a>
     </section>

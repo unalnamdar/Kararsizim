@@ -15,7 +15,7 @@ class PollForm(forms.Form):
         label="Sorun ne?",
         max_length=QUESTION_MAX_LENGTH,
         widget=forms.TextInput(attrs={
-            "placeholder": "Bugün sinemaya mı gitsem, restorana mı?",
+            "placeholder": "Bugün sinemaya mı gitsem?",
             "autocomplete": "off",
             "autofocus": True,
         }),

@@ -1,0 +1,17 @@
+{% extends "base.html" %}
+
+{% block title %}{% if csrf_failure %}Oturumun zaman aşımına uğradı{% else %}Erişim yok{% endif %} · Kararsızım{% endblock %}
+
+{% block content %}
+  <section class="card error-page">
+    <p class="error-page__code" aria-hidden="true">403</p>
+    {% if csrf_failure %}
+      <h1 class="error-page__title">Oturumun zaman aşımına uğradı</h1>
+      <p>Güvenlik doğrulaması tamamlanamadı. Sayfayı yenileyip işlemi tekrar dene.</p>
+    {% else %}
+      <h1 class="error-page__title">Bu işlem için yetkin yok</h1>
+      <p>{% if exception %}{{ exception }}{% else %}Bu sayfaya ya da işleme erişemiyorsun.{% endif %}</p>
+    {% endif %}
+    <a class="button" href="{% url 'polls:feed' %}">Ana sayfaya dön</a>
+  </section>
+{% endblock %}

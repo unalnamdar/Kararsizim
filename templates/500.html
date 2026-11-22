@@ -1,0 +1,27 @@
+{% load static %}<!doctype html>{# Standalone on purpose: Django renders this without a request context, so it must not depend on base.html. #}
+<html lang="tr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Bir şeyler ters gitti · Kararsızım</title>
+  <link rel="icon" href="{% static 'img/favicon.svg' %}" type="image/svg+xml">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;700;800&display=swap">
+  <link rel="stylesheet" href="{% static 'css/tokens.css' %}">
+  <link rel="stylesheet" href="{% static 'css/main.css' %}">
+</head>
+<body>
+  <header class="site-header">
+    <div class="container site-header__inner">
+      <a class="logo" href="/">Kararsızım</a>
+    </div>
+  </header>
+  <main class="container" id="main">
+    <section class="card error-page">
+      <p class="error-page__code" aria-hidden="true">500</p>
+      <h1 class="error-page__title">Bir şeyler ters gitti</h1>
+      <p>Sunucuda beklenmedik bir hata oluştu. Biraz sonra tekrar dene.</p>
+      <a class="button" href="/">Ana sayfaya dön</a>
+    </section>
+  </main>
+</body>
+</html>

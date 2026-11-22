@@ -3,44 +3,77 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>{% block title %}Kararsızım{% endblock %}</title>
-  <meta name="description" content="{% block description %}Kararsız mı kaldın? Sor, topluluk oylasın.{% endblock %}">
-  {% block meta %}{% endblock %}
+  <meta name="color-scheme" content="light">
+  <title>{% block title %}Kararsızım · Kararsız kalınca topluluğa sor{% endblock %}</title>
+  <meta name="description" content="{% block description %}Kararsız mı kaldın? Seçeneklerini yaz, topluluk oylasın.{% endblock %}">
+
+  <link rel="icon" href="{% static 'img/favicon.svg' %}" type="image/svg+xml">
+
+  {% block og %}
+  <meta property="og:site_name" content="Kararsızım">
+  <meta property="og:locale" content="tr_TR">
+  <meta property="og:type" content="website">
+  <meta property="og:title" content="{% block og_title %}Kararsızım{% endblock %}">
+  <meta property="og:description" content="{% block og_description %}Kararsız mı kaldın? Seçeneklerini yaz, topluluk oylasın.{% endblock %}">
+  <meta property="og:url" content="{{ request.scheme }}://{{ request.get_host }}{{ request.path }}">
+  <meta property="og:image" content="{{ request.scheme }}://{{ request.get_host }}{% static 'img/og-image.png' %}">
+  <meta property="og:image:width" content="1200">
+  <meta property="og:image:height" content="630">
+  <meta property="og:image:alt" content="Renkli anket sonuç çubukları">
+  <meta name="twitter:card" content="summary_large_image">
+  {% endblock %}
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap">
   <link rel="stylesheet" href="{% static 'css/tokens.css' %}">
   <link rel="stylesheet" href="{% static 'css/main.css' %}">
 </head>
 <body>
+  <a class="skip-link" href="#main">İçeriğe geç</a>
+
   <header class="site-header">
     <div class="container site-header__inner">
       <a class="logo" href="{% url 'polls:feed' %}">Kararsızım</a>
-      <nav class="site-nav" aria-label="Hesap">
-        <a class="button button--small" href="{% url 'polls:create' %}">Anket oluştur</a>
+
+      <nav class="site-nav" aria-label="Ana menü">
+        <a class="button button--small" href="{% url 'polls:create' %}" aria-label="Anket oluştur"><span aria-hidden="true">+ Anket<span class="nav-long"> oluştur</span></span></a>
+
         {% if user.is_authenticated %}
-          <span class="site-nav__user">@{{ user.username }}</span>
-          <a href="{% url 'polls:my_polls' %}">Anketlerim</a>
-          <form method="post" action="{% url 'accounts:logout' %}" class="inline-form">
-            {% csrf_token %}
-            <button type="submit" class="link-button">Çıkış</button>
-          </form>
+          <details class="menu" data-menu>
+            <summary class="menu__summary" aria-label="Hesap menüsü: @{{ user.username }}">
+              <span class="menu__avatar" aria-hidden="true">{{ user.username|first|upper }}</span>
+              <span class="menu__name">@{{ user.username }}</span>
+              <span class="menu__caret" aria-hidden="true"></span>
+            </summary>
+            <div class="menu__panel">
+              <a class="menu__item" href="{% url 'polls:my_polls' %}">Anketlerim</a>
+              <form method="post" action="{% url 'accounts:logout' %}">
+                {% csrf_token %}
+                <button type="submit" class="menu__item">Çıkış yap</button>
+              </form>
+            </div>
+          </details>
         {% else %}
-          <a href="{% url 'accounts:login' %}{% if request.path != '/' and request.resolver_match.app_name != 'accounts' %}?next={{ request.get_full_path|urlencode }}{% endif %}">Giriş</a>
-          <a href="{% url 'accounts:signup' %}">Kayıt ol</a>
+          <a class="nav-link" href="{% url 'accounts:login' %}{% if request.method == 'GET' and request.path != '/' and request.resolver_match.app_name != 'accounts' %}?next={{ request.get_full_path|urlencode }}{% endif %}">Giriş</a>
+          <a class="nav-link nav-wide-only" href="{% url 'accounts:signup' %}">Kayıt ol</a>
         {% endif %}
       </nav>
     </div>
   </header>
 
-  <main class="container" id="main">
+  <main class="container" id="main" tabindex="-1">
     {% if messages %}
-      <ul class="messages" role="status">
+      <ul class="messages">
         {% for message in messages %}
-          <li class="message message--{{ message.tags }}">{{ message }}</li>
+          <li class="message message--{{ message.tags }}" role="{% if message.level_tag == 'error' or message.level_tag == 'warning' %}alert{% else %}status{% endif %}">{{ message }}</li>
         {% endfor %}
       </ul>
     {% endif %}
     {% block content %}{% endblock %}
   </main>
 
+  <script src="{% static 'js/site.js' %}" defer></script>
   <script src="{% static 'js/vote.js' %}" defer></script>
   {% block scripts %}{% endblock %}
 </body>

@@ -1,0 +1,12 @@
+{% extends "base.html" %}
+
+{% block title %}Sayfa bulunamadı · Kararsızım{% endblock %}
+
+{% block content %}
+  <section class="card error-page">
+    <p class="error-page__code" aria-hidden="true">404</p>
+    <h1 class="error-page__title">Sayfa bulunamadı</h1>
+    <p>Aradığın sayfa taşınmış, silinmiş ya da hiç var olmamış olabilir.</p>
+    <a class="button" href="{% url 'polls:feed' %}">Ana sayfaya dön</a>
+  </section>
+{% endblock %}

@@ -58,6 +58,8 @@ MIDDLEWARE = [
 
 ROOT_URLCONF = "config.urls"
 
+CSRF_FAILURE_VIEW = "config.views.csrf_failure"
+
 TEMPLATES = [
     {
         "BACKEND": "django.template.backends.django.DjangoTemplates",
