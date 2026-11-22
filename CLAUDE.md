@@ -32,5 +32,5 @@ DEBUG=False SECRET_KEY=<uzun-rastgele> .venv/Scripts/python.exe manage.py check 
 
 ## Git
 
-- Ana dal `main`. Her faz kabul kriterleri sağlanınca o faz için commit at; push yapma.
+- Ana dal `main`, remote `origin` → https://github.com/unalnamdar/Kararsizim. Her faz kabul kriterleri sağlanınca o faz için commit at ve `git push origin main` ile pushla.
 - Dosyaları tek tek ekle (`git add -A` kullanma); `.env` ve `.idea/` commit'lenmez.
