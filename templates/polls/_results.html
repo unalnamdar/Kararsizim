@@ -11,7 +11,7 @@
     <li class="option option--{{ item.position }} option--result{% if item.selected %} is-selected{% endif %}">
       <span class="option__fill" style="width: {{ item.percent }}%" aria-hidden="true"></span>
       {% if votable %}
-        <button type="submit" name="option_id" value="{{ item.id }}" class="option__button option__button--result">
+        <button type="submit" name="option_id" value="{{ item.id }}" class="option__button option__button--result" aria-label="{{ item.text }}, %{{ item.percent }}, {{ item.votes }} oy">
           <span class="option__label">{{ item.text }}</span>
           <span class="option__value"><strong>%{{ item.percent }}</strong> · {{ item.votes }} oy</span>
         </button>

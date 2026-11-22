@@ -23,6 +23,7 @@
     const list = el("ol", "options options--results");
     list.setAttribute("aria-label", "Sonuçlar");
     const fills = [];
+    let chosen = null;
 
     items.forEach(function (item) {
       const button = item.querySelector(".option__button");
@@ -43,6 +44,7 @@
 
       const label = el("span", "option__label", labelText);
       if (selected) {
+        chosen = { text: labelText, percent: result.percent };
         label.append(" ");
         const check = el("span", "option__check", "✓");
         check.setAttribute("aria-hidden", "true");
@@ -64,7 +66,16 @@
         fills.forEach(function (pair) { pair[0].style.width = pair[1] + "%"; });
       });
     });
-    return list;
+    return { list: list, chosen: chosen };
+  }
+
+  // Polite screen reader announcement. Clearing first and setting on the next tick makes
+  // readers announce the text even if the same message was set before.
+  function announce(card, message) {
+    const live = card.querySelector("[data-poll-live]");
+    if (!live) return;
+    live.textContent = "";
+    setTimeout(function () { live.textContent = message; }, 50);
   }
 
   function showError(card, message) {
@@ -106,11 +117,19 @@
     }
 
     if ((response.status === 200 || response.status === 409) && Array.isArray(data.options)) {
-      const list = renderResults(form, data);
+      const rendered = renderResults(form, data);
       setFooter(card, data.total);
-      if (response.status === 409) showError(card, "Bu ankete zaten oy vermiştin.");
-      list.setAttribute("tabindex", "-1");
-      list.focus({ preventScroll: true });
+      if (response.status === 409) {
+        showError(card, "Bu ankete zaten oy vermiştin.");  // role="alert" announces it
+      } else if (rendered.chosen) {
+        announce(
+          card,
+          "Oyun kaydedildi. Seçimin: " + rendered.chosen.text + ", %" + rendered.chosen.percent +
+            ". Toplam " + data.total + " oy."
+        );
+      }
+      rendered.list.setAttribute("tabindex", "-1");
+      rendered.list.focus({ preventScroll: true });
       return;
     }
 

@@ -47,6 +47,12 @@ class SignUpForm(forms.ModelForm):
             "username": "Anketlerinde görünür. 3–20 karakter; harf, rakam ve alt çizgi (_).",
         }
 
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        if self.is_bound:
+            # After a failed submit the error summary gets the focus (site.js), not the first field.
+            self.fields["email"].widget.attrs.pop("autofocus", None)
+
     def clean_email(self):
         email = normalize_email_address(self.cleaned_data.get("email"))
         if User.objects.filter(email__iexact=email).exists():
@@ -111,6 +117,12 @@ class LoginForm(AuthenticationForm):
         "invalid_login": "E-posta veya parola hatalı.",
         "inactive": "Bu hesap etkin değil.",
     }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        if self.is_bound:
+            # After a failed submit the error summary gets the focus (site.js), not the first field.
+            self.fields["username"].widget.attrs.pop("autofocus", None)
 
     def clean_username(self):
         return normalize_email_address(self.cleaned_data.get("username"))

@@ -9,13 +9,15 @@
 
     <form method="post" novalidate data-poll-form data-min-options="2" data-max-options="5">
       {% csrf_token %}
+      {% include "includes/error_summary.html" %}
       {% include "includes/form_field.html" with field=form.question %}
 
-      <fieldset class="options-fieldset">
+      <fieldset class="options-fieldset"{% if form.option_errors %} aria-describedby="option-errors"{% endif %}>
         <legend>Seçenekler <span class="muted">(2–5)</span></legend>
 
         {% if form.option_errors %}
-          <div class="form-error" role="alert">
+          {# the error summary above is the alert; this box repeats the messages next to the inputs #}
+          <div class="form-error" id="option-errors">
             {% for error in form.option_errors %}<p>{{ error }}</p>{% endfor %}
           </div>
         {% endif %}

@@ -320,6 +320,19 @@ main:focus { outline: none; }
 .field__help ul { margin: 0; padding-left: var(--space-4); }
 .field__error { margin: var(--space-1) 0 0; color: var(--color-danger); font-size: var(--text-sm); font-weight: var(--weight-semibold); }
 
+.error-summary {
+  margin: 0 0 var(--space-4);
+  padding: var(--space-3) var(--space-4);
+  border: var(--border-option) solid var(--color-danger);
+  border-radius: var(--radius-control);
+  background: var(--color-danger-soft);
+  color: var(--color-danger);
+}
+.error-summary:focus-visible, .error-summary:focus { outline: var(--ring-width) solid var(--color-focus); outline-offset: var(--ring-offset); }
+.error-summary__title { margin: 0 0 var(--space-1); font-weight: var(--weight-bold); }
+.error-summary ul { margin: 0; padding-left: var(--space-5); }
+.error-summary a { color: inherit; font-weight: var(--weight-semibold); }
+
 .form-error {
   margin: 0 0 var(--space-4);
   padding: var(--space-3) var(--space-4);

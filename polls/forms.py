@@ -33,6 +33,9 @@ class PollForm(forms.Form):
             self.option_values = [""] * MIN_OPTIONS
         self.option_errors = []
         self.cleaned_options = []
+        if self.is_bound:
+            # After a failed submit the error summary gets the focus (site.js), not the question field.
+            self.fields["question"].widget.attrs.pop("autofocus", None)
 
     @property
     def option_fields(self):

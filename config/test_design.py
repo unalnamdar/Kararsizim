@@ -301,3 +301,120 @@ class HeaderAndMessagesTests(TestCase):
         poll = make_poll(make_user("yazar"))
         failed = self.client.post(f"/anket/{poll.pk}/oy/", {"option_id": "x"}, follow=True)
         self.assertContains(failed, 'class="message message--error" role="alert"')
+
+
+def dangling_references(html):
+    """ids referenced by aria-describedby / aria-labelledby / aria-controls / label[for] / #anchors that don't exist."""
+    ids = set(re.findall(r'\sid="([^"]+)"', html))
+    refs = []
+    for attribute in ("aria-describedby", "aria-labelledby", "aria-controls"):
+        for value in re.findall(rf'\s{attribute}="([^"]+)"', html):
+            refs += value.split()
+    refs += re.findall(r'<label[^>]*\sfor="([^"]+)"', html)
+    refs += re.findall(r'href="#([^"]+)"', html)
+    return sorted({ref for ref in refs if ref not in ids})
+
+
+class AccessibilityTests(TestCase):
+    def setUp(self):
+        self.owner = make_user("sahip")
+
+    def post_invalid_signup(self):
+        make_user("var")  # "var" is taken -> username error; email is malformed -> email error
+        return self.client.post("/kayit/", {"email": "x", "username": "var", "password1": "a", "password2": "b"})
+
+    def test_no_dangling_aria_references_on_forms_with_errors(self):
+        self.client.force_login(self.owner)
+        pages = {
+            "create (invalid)": self.client.post("/anket/yeni/", {"question": "", "options": ["A", "a"]}),
+            "create": self.client.get("/anket/yeni/"),
+        }
+        self.client.logout()
+        pages["signup (invalid)"] = self.post_invalid_signup()
+        pages["login (invalid)"] = self.client.post("/giris/", {"username": "a@b.co", "password": "yanlis"})
+        for name, response in pages.items():
+            with self.subTest(page=name):
+                self.assertEqual(dangling_references(response.content.decode()), [])
+
+    def test_no_dangling_aria_references_on_poll_pages(self):
+        poll = make_poll(self.owner, options=("Çay", "Kahve"))
+        Vote.objects.create(poll=poll, option=poll.options.first(), voter_key="00000000-0000-4000-8000-000000000001")
+        urls = ["/", f"/anket/{poll.pk}/", "/giris/", "/kayit/"]
+        for logged_in in (False, True):  # guest sees vote buttons, owner sees clickable result bars
+            if logged_in:
+                self.client.force_login(self.owner)
+            for url in urls:
+                with self.subTest(url=url, owner=logged_in):
+                    self.assertEqual(dangling_references(self.client.get(url).content.decode()), [])
+
+    def test_field_errors_are_wired_to_their_inputs(self):
+        html = self.post_invalid_signup().content.decode()
+        for name in ("email", "username"):
+            self.assertRegex(html, rf'<input[^>]*name="{name}"[^>]*aria-invalid="true"')
+            self.assertRegex(html, rf'<input[^>]*name="{name}"[^>]*aria-describedby="[^"]*id_{name}_error')
+            self.assertIn(f'id="id_{name}_error"', html)
+        self.assertIn("Bu kullanıcı adı alınmış.", html)
+
+    def test_error_summary_after_failed_signup(self):
+        html = self.post_invalid_signup().content.decode()
+        self.assertIn("data-error-summary", html)
+        self.assertIn('id="error-summary" role="alert" tabindex="-1"', html)
+        self.assertIn('href="#id_email"', html)
+        self.assertIn('href="#id_username"', html)
+        self.assertEqual(html.count('role="alert"'), 1)  # the summary only; no duplicate announcements
+
+    def test_error_summary_for_wrong_login(self):
+        response = self.client.post("/giris/", {"username": "a@b.co", "password": "yanlis"})
+        self.assertContains(response, "data-error-summary")
+        self.assertContains(response, "<li>E-posta veya parola hatalı.</li>", html=False)
+        self.assertContains(response, 'role="alert"', count=1)
+
+    def test_error_summary_on_poll_form_lists_question_and_option_errors(self):
+        self.client.force_login(self.owner)
+        html = self.client.post("/anket/yeni/", {"question": "", "options": ["A", "a"]}).content.decode()
+        self.assertIn("data-error-summary", html)
+        self.assertIn('href="#id_question"', html)
+        self.assertIn("Aynı seçeneği birden fazla kez yazdın.", html)
+        self.assertIn('<fieldset class="options-fieldset" aria-describedby="option-errors">', html)
+        self.assertIn('id="option-errors"', html)
+        self.assertEqual(html.count('role="alert"'), 1)
+
+    def test_autofocus_only_on_fresh_forms(self):
+        """After a failed submit the error summary takes the focus, so no field may compete with it."""
+        self.client.force_login(self.owner)
+        fresh = {"create": self.client.get("/anket/yeni/")}
+        failed = {"create": self.client.post("/anket/yeni/", {"question": "", "options": ["A", "A"]})}
+        self.client.logout()  # signed-in users are redirected away from the sign-up and login pages
+        fresh["signup"] = self.client.get("/kayit/")
+        fresh["login"] = self.client.get("/giris/")
+        failed["login"] = self.client.post("/giris/", {"username": "a@b.co", "password": "yanlis"})
+        failed["signup"] = self.post_invalid_signup()
+        for name, response in fresh.items():
+            with self.subTest(form=name, state="fresh"):
+                self.assertContains(response, "autofocus")
+        for name, response in failed.items():
+            with self.subTest(form=name, state="failed"):
+                self.assertNotContains(response, "autofocus")
+
+    def test_no_error_summary_without_errors(self):
+        for url in ("/giris/", "/kayit/"):
+            with self.subTest(url=url):
+                self.assertNotContains(self.client.get(url), "data-error-summary")
+        self.client.force_login(self.owner)
+        self.assertNotContains(self.client.get("/anket/yeni/"), "data-error-summary")
+
+    def test_each_poll_card_has_one_polite_live_region(self):
+        for i in range(3):
+            make_poll(self.owner, question=f"Soru {i}")
+        html = self.client.get("/").content.decode()
+        self.assertEqual(html.count("data-poll-live"), 3)
+        self.assertEqual(html.count('role="status" aria-live="polite" data-poll-live'), 3)
+
+    def test_owner_result_bars_have_explicit_accessible_names(self):
+        poll = make_poll(self.owner, options=("Çay", "Kahve", "İkisi de"))
+        for i in range(3):
+            Vote.objects.create(poll=poll, option=poll.options.all()[1], voter_key=f"00000000-0000-4000-8000-00000000000{i}")
+        self.client.force_login(self.owner)
+        html = self.client.get(poll.get_absolute_url()).content.decode()
+        for label in ("Çay, %0, 0 oy", "Kahve, %100, 3 oy", "İkisi de, %0, 0 oy"):
+            self.assertIn(f'aria-label="{label}"', html)

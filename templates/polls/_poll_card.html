@@ -27,6 +27,8 @@
   {% endif %}
 
   <p class="poll-card__error" role="alert" data-poll-error hidden></p>
+  {# Screen reader announcement after an in-page vote; vote.js fills it #}
+  <p class="visually-hidden" role="status" aria-live="polite" data-poll-live></p>
 
   <p class="poll-card__footer" data-poll-footer{% if poll.is_owner %} data-owner{% endif %}>
     {% if poll.show_results %}
