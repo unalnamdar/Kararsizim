@@ -1,0 +1,23 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "django",
+      "runtimeExecutable": ".venv/Scripts/python.exe",
+      "runtimeArgs": ["manage.py", "runserver", "8000"],
+      "port": 8000
+    },
+    {
+      "name": "django-sqlite",
+      "runtimeExecutable": ".venv/Scripts/python.exe",
+      "runtimeArgs": ["-c", "import os,sys; os.environ['DATABASE_URL']=''; os.environ['DEBUG']='True'; sys.argv=['manage.py','runserver','8001']; exec(open('manage.py').read())"],
+      "port": 8001
+    },
+    {
+      "name": "django-errors",
+      "runtimeExecutable": ".venv/Scripts/python.exe",
+      "runtimeArgs": ["-c", "import os,sys; os.environ['DATABASE_URL']=''; os.environ['DEBUG']='True'; os.environ['DJANGO_SETTINGS_MODULE']='config.settings'; import django; django.setup(); from django.urls import path; from django.views import defaults; import config.urls as u; u.urlpatterns += [path('_e404/', defaults.page_not_found, {'exception': Exception()}), path('_e403/', defaults.permission_denied, {'exception': Exception('Bu anketi yalnızca sahibi silebilir.')}), path('_e500/', defaults.server_error)]; sys.argv=['manage.py','runserver','8002','--noreload']; exec(open('manage.py').read())"],
+      "port": 8002
+    }
+  ]
+}
