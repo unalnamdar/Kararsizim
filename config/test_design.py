@@ -127,6 +127,30 @@ class TokenDisciplineTests(TestCase):
                     self.assertRegex(style, r"^width:\s*\{\{[^}]+\}\}%;?$")
 
 
+class TemplateHygieneTests(TestCase):
+    def test_single_line_comments_are_closed_on_the_same_line(self):
+        """`{# ... #}` only works on one line; a multi-line one leaks its text into the page."""
+        offenders = []
+        for path in (BASE_DIR / "templates").rglob("*.html"):
+            for number, line in enumerate(path.read_text(encoding="utf-8").splitlines(), start=1):
+                if "{#" in line and "#}" not in line.split("{#", 1)[1]:
+                    offenders.append(f"{path.relative_to(BASE_DIR)}:{number}")
+        self.assertEqual(offenders, [])
+
+    def test_no_template_syntax_leaks_into_rendered_pages(self):
+        owner = make_user("sahip")
+        poll = make_poll(owner)
+        pages = ["/", f"/anket/{poll.pk}/", "/giris/", "/kayit/", "/yok/"]
+        for logged_in in (False, True):
+            if logged_in:
+                self.client.force_login(owner)
+            for url in pages + (["/anketlerim/", "/anket/yeni/"] if logged_in else []):
+                with self.subTest(url=url, logged_in=logged_in):
+                    html = self.client.get(url).content.decode()
+                    for token in ("{#", "#}", "{%", "%}", "{{", "}}"):
+                        self.assertNotIn(token, html)
+
+
 class ErrorPageTests(TestCase):
     def test_404_page(self):
         response = self.client.get("/boyle/bir/sayfa/yok/")

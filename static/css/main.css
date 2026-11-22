@@ -440,6 +440,20 @@ main:focus { outline: none; }
   .option__button:hover { background: var(--option-fill); }
 }
 
+/* Owner before their own vote: the result bar itself is the button. */
+.option__button--result {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+.option__button--result:hover,
+.option__button--result:active { background: transparent; }
+
+@media (hover: hover) {
+  .option--result:has(.option__button--result:hover) { background: var(--option-soft); }
+}
+
 /* The ring goes on the whole option so it never blends into the colored border. */
 @supports selector(:has(*)) {
   .option__button:focus-visible { outline: none; }

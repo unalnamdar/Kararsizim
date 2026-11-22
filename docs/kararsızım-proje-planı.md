@@ -20,17 +20,18 @@ Kullanım: kullanıcı "Faz 1'i uygula" gibi bir komut verir.
 - Kayıtta **e-posta, parola, kullanıcı adı** alınır. Anketlerde yalnızca **kullanıcı adı** görünür; e-posta hiçbir sayfada, HTML'de veya JSON yanıtında yer almaz.
 - Bir anket en az **2**, en fazla **5** seçenek içerir.
 - Bir kişi bir ankete **tek oy** verir; oy değiştirilemez (prototip).
-- Sonuçlar (yüzde + oy sayısı) kişiye **oy verdikten sonra** gösterilir. Anket sahibi sonuçları her zaman görür ve kendi anketine oy veremez.
+- Sonuçlar (yüzde + oy sayısı) kişiye **oy verdikten sonra** gösterilir. Anket sahibi sonuçları her zaman görür ve kendi anketine de (herkes gibi tek) oy verebilir (karar 7).
 - Anket sahibi anketini **silebilir**, düzenleyemez (oy geldikten sonra soruyu değiştirmek adil olmaz).
 
 ### Netleştirilen kararlar (2026-11-17)
 
 1. **Toplam oy sayısı da sonuçtur.** Oy vermemiş kişi hiçbir sayı görmez (toplam dahil); HTML ve JSON'da yer almaz. Kart altında bunun yerine "Oy ver, sonuçları gör" gibi bir metin gösterilir. Sayıları yalnızca oy vermiş kişi ve anket sahibi görür.
-2. **Misafir → üye geçişi.** Giriş yapmış kullanıcıda "oy verdi mi?" kontrolü hem `user` hem de tarayıcıdaki `voter_id` çereziyle yapılır. O çerezle daha önce oy verilmişse "zaten oy verdin" sayılır (`409`) ve sonuçlar görünür. Bunun için `voter_id` çerezi üye oylarında da üretilir ve `voter_key` **her oyda** (üye oyu dahil) saklanır; böylece üye oy verip çıkış yaparsa aynı tarayıcıdan misafir olarak tekrar oy veremez. Bedeli: aynı tarayıcıyı paylaşan iki üyeden yalnızca biri aynı ankete oy verebilir (kabul edildi). Sahip çıkış yapıp kendi anketine misafir olarak oy verirse engellenemez — bilinen sınır.
+2. **Misafir → üye geçişi.** Giriş yapmış kullanıcıda "oy verdi mi?" kontrolü hem `user` hem de tarayıcıdaki `voter_id` çereziyle yapılır. O çerezle daha önce oy verilmişse "zaten oy verdin" sayılır (`409`) ve sonuçlar görünür. Bunun için `voter_id` çerezi üye oylarında da üretilir ve `voter_key` **her oyda** (üye oyu dahil) saklanır; böylece üye oy verip çıkış yaparsa aynı tarayıcıdan misafir olarak tekrar oy veremez. Bedeli: aynı tarayıcıyı paylaşan iki üyeden yalnızca biri aynı ankete oy verebilir (kabul edildi). Çerezi silen herkes (sahip dahil) tekrar oy verebilir — bilinen sınır.
 3. **Oy yeri.** Hem akıştaki kartlardan hem detay sayfasından oy verilebilir; sonuçlar kartın içinde yerinde açılır.
 4. **Git.** Ana dal `main`, remote `origin` (GitHub: `unalnamdar/Kararsizim`). Her faz kabul kriterleri sağlanınca tek commit atılır ve `main` pushlanır.
 5. **Tasarım: kontrast öncelikli palet (Faz 4).** WCAG AA ölçülerek uygulandı (`config/test_design.py` her çalıştırmada denetler). Seçenek **kenarlıkları** arayüz bileşeni sayıldığı için ≥3:1 gerektiriyordu; mercan, turkuaz ve özellikle sarı koyulaştırıldı (sarı kenarlık hardal tonu `#B38500`; çubuk dolgusu ve zemin tonu parlak sarı kalır). Form alanı kenarlığı ve odak halkası da aynı nedenle koyu tonda.
 6. **Tasarım: dar ekran başlığı (Faz 4).** 360px'de başlık tek satır kalsın diye: "Anket oluştur" düğmesi "+ Anket"e kısalır, üye menüsü baş harfli yuvarlak düğme olur, misafirde "Kayıt ol" bağlantısı başlıktan kalkar (giriş sayfasındaki "Kayıt ol" bağlantısından erişilir). 30em ve üstünde hepsi tam görünür.
+7. **Sahip kendi anketine oy verebilir (2026-11-23, kullanıcı kararı).** Bölüm 1'deki "sahip oy veremez" kuralı kaldırıldı. Sahip sonuçları yine baştan görür; oy vermediği sürece sonuç çubuklarının her biri bir düğmedir ("Sen de oy verebilirsin"). Oy verince diğer herkes gibi tek oyu sayılır (ikinci deneme `409`, çıkış yapıp misafir olarak denemek de aynı tarayıcıda `409`), seçimi ✓ ile görünür ve çubuklar tıklanamaz olur. Diğer ziyaretçiler için hiçbir şey değişmedi: oy vermeden sonuç görmezler.
 
 ### Kapsam dışı (prototipte yapma)
 
@@ -143,7 +144,7 @@ kararsizim/
 
 - Başarılı → `200` `{"total": 42, "options": [{"id": 1, "votes": 30, "percent": 71}, ...], "voted_option_id": 1}`
 - Zaten oy verilmiş → `409`, aynı sonuç gövdesiyle
-- Geçersiz seçenek / sahip kendi anketine oy veriyor → `400` / `403`, `{"error": "..."}` (Türkçe mesaj)
+- Geçersiz seçenek → `400`, `{"error": "..."}` (Türkçe mesaj). Anket yoksa `404`. (Sahip oyu artık reddedilmez; karar 7.)
 - CSRF koruması açık kalır; `vote.js` token'ı `X-CSRFToken` başlığıyla gönderir.
 - Yarış durumunda `IntegrityError` yakalanıp `409` döndürülür.
 - Yüzdeler toplamı 100 olacak şekilde yuvarlanır.
@@ -241,7 +242,7 @@ if DATABASES["default"]["ENGINE"].endswith("postgresql"):
 **Kabul kriterleri:**
 - Misafir ve üye oy verebilir; aynı kişi ikinci kez veremez (`409`).
 - Oy vermeden önce sonuçlar HTML'de ve JSON'da **yer almaz**; verdikten sonra görünür ve sayfa yenilenince korunur.
-- Sahip kendi anketinde sonuçları görür, oy veremez.
+- Sahip kendi anketinde sonuçları baştan görür ve (tek) oy verebilir; oy verince seçimi ✓ ile işaretlenir ve çubuklar tıklanamaz olur (karar 7).
 - Başka bir ankete ait `option_id` reddedilir.
 - Testler: üye oyu, anonim oy, çift oy, yanlış seçenek, sahip oyu, yüzde toplamı = 100.
 

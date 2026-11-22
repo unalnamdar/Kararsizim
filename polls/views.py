@@ -89,7 +89,6 @@ def delete(request, poll_id):
 
 MSG_NOT_FOUND = "Anket bulunamadı."
 MSG_INVALID_OPTION = "Geçersiz seçenek."
-MSG_OWNER = "Kendi anketine oy veremezsin."
 MSG_ALREADY = "Bu ankete zaten oy vermiştin."
 MSG_SUCCESS = "Oyun kaydedildi."
 
@@ -139,8 +138,6 @@ def vote(request, poll_id):
         raise Http404(MSG_NOT_FOUND)
 
     user = request.user if request.user.is_authenticated else None
-    if user is not None and poll.author_id == user.pk:
-        return respond(403, MSG_OWNER)
 
     option_id = _read_option_id(request, is_json)
     if option_id is None or not poll.options.filter(pk=option_id).exists():

@@ -125,6 +125,8 @@ def annotate_for_viewer(request, polls):
     for poll in polls:
         poll.is_owner = user.is_authenticated and poll.author_id == user.pk
         poll.voted_option_id = voted.get(poll.pk)
+        # Everyone, the owner included, votes once. The owner just sees the results from the start.
+        poll.votable = poll.voted_option_id is None
         poll.show_results = poll.is_owner or poll.voted_option_id is not None
         poll.results = build_results(poll.options.all(), poll.voted_option_id) if poll.show_results else None
     return polls

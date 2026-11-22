@@ -30,13 +30,18 @@
       if (!result) return;
       const selected = String(data.voted_option_id) === button.value;
 
-      const li = el("li", item.className + " option--result" + (selected ? " is-selected" : ""));
+      // Only keep the color class (option--N): the form may already be a results list (owner view).
+      const colorClass = Array.from(item.classList).find(function (c) { return /^option--\d+$/.test(c); });
+      const labelNode = item.querySelector(".option__label");
+      const labelText = (labelNode || button).textContent.trim();
+
+      const li = el("li", "option " + colorClass + " option--result" + (selected ? " is-selected" : ""));
       const fill = el("span", "option__fill");
       fill.setAttribute("aria-hidden", "true");
       fill.style.width = "0%";
       fills.push([fill, result.percent]);
 
-      const label = el("span", "option__label", button.textContent.trim());
+      const label = el("span", "option__label", labelText);
       if (selected) {
         label.append(" ");
         const check = el("span", "option__check", "✓");
@@ -71,7 +76,7 @@
 
   function setFooter(card, total) {
     const footer = card.querySelector("[data-poll-footer]");
-    if (footer) footer.textContent = total + " oy";
+    if (footer) footer.textContent = total + " oy" + (footer.hasAttribute("data-owner") ? " · Senin anketin" : "");
   }
 
   async function submitVote(form, button) {

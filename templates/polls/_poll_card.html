@@ -12,7 +12,7 @@
   {% endif %}
 
   {% if poll.show_results %}
-    {% include "polls/_results.html" with results=poll.results %}
+    {% include "polls/_results.html" with results=poll.results votable=poll.votable poll_id=poll.pk %}
   {% else %}
     <form method="post" action="{% url 'polls:vote' poll.pk %}" class="vote-form" data-vote-form>
       {% csrf_token %}
@@ -28,9 +28,9 @@
 
   <p class="poll-card__error" role="alert" data-poll-error hidden></p>
 
-  <p class="poll-card__footer" data-poll-footer>
+  <p class="poll-card__footer" data-poll-footer{% if poll.is_owner %} data-owner{% endif %}>
     {% if poll.show_results %}
-      <span data-poll-total>{{ poll.results.total }}</span> oy{% if poll.is_owner %} · Senin anketin{% endif %}
+      <span data-poll-total>{{ poll.results.total }}</span> oy{% if poll.is_owner %} · Senin anketin{% if poll.votable %} · Sen de oy verebilirsin{% endif %}{% endif %}
     {% else %}
       Oy ver, sonuçları gör
     {% endif %}

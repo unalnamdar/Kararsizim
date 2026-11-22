@@ -93,12 +93,29 @@ class VoteEndpointTests(VoteTestCase):
         self.client.post("/cikis/")
         self.assertEqual(self.vote_json(self.coffee.pk).status_code, 409)
 
-    def test_owner_cannot_vote(self):
+    def test_owner_can_vote_on_own_poll(self):
         self.client.force_login(self.owner)
         response = self.vote_json(self.tea.pk)
-        self.assertEqual(response.status_code, 403)
-        self.assertEqual(response.json(), {"error": "Kendi anketine oy veremezsin."})
-        self.assertFalse(Vote.objects.exists())
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()["voted_option_id"], self.tea.pk)
+        vote = Vote.objects.get()
+        self.assertEqual(vote.user, self.owner)
+        self.assertEqual(vote.option, self.tea)
+
+    def test_owner_votes_only_once(self):
+        self.client.force_login(self.owner)
+        self.vote_json(self.tea.pk)
+        response = self.vote_json(self.coffee.pk)
+        self.assertEqual(response.status_code, 409)
+        self.assertEqual(response.json()["voted_option_id"], self.tea.pk)
+        self.assertEqual(Vote.objects.count(), 1)
+
+    def test_owner_cannot_vote_again_as_guest_in_same_browser(self):
+        self.client.force_login(self.owner)
+        self.vote_json(self.tea.pk)
+        self.client.post("/cikis/")
+        self.assertEqual(self.vote_json(self.coffee.pk).status_code, 409)
+        self.assertEqual(Vote.objects.count(), 1)
 
     def test_option_from_another_poll_rejected(self):
         other_option = make_poll(make_user("baska")).options.first()
@@ -185,11 +202,11 @@ class NoJsFallbackTests(VoteTestCase):
         self.assertContains(response, "Geçersiz seçenek.")
         self.assertFalse(Vote.objects.exists())
 
-    def test_form_post_owner(self):
+    def test_form_post_owner_can_vote(self):
         self.client.force_login(self.owner)
         response = self.client.post(self.url, {"option_id": self.tea.pk}, follow=True)
-        self.assertContains(response, "Kendi anketine oy veremezsin.")
-        self.assertFalse(Vote.objects.exists())
+        self.assertContains(response, "Oyun kaydedildi.")
+        self.assertEqual(Vote.objects.get().user, self.owner)
 
 
 class ResultVisibilityTests(VoteTestCase):
@@ -233,15 +250,36 @@ class ResultVisibilityTests(VoteTestCase):
                 self.assertContains(response, "<span data-poll-total>4</span> oy", html=False)
                 self.assertNotContains(response, 'name="option_id"')
 
-    def test_owner_always_sees_results_and_no_vote_buttons(self):
+    def test_owner_sees_results_from_the_start_and_can_click_bars_to_vote(self):
         self.client.force_login(self.owner)
         for url in ["/", f"/anket/{self.poll.pk}/", "/anketlerim/"]:
             with self.subTest(url=url):
                 response = self.client.get(url)
                 self.assertContains(response, "<strong>%100</strong> · 3 oy", html=False)
                 self.assertContains(response, "Senin anketin")
-                self.assertNotContains(response, 'name="option_id"')
+                self.assertContains(response, "Sen de oy verebilirsin")
+                self.assertContains(response, 'name="option_id"', count=3)  # every bar is a button
+                self.assertContains(response, f'action="/anket/{self.poll.pk}/oy/"')
                 self.assertNotContains(response, "is-selected")
+
+    def test_owner_after_voting_sees_selection_and_no_buttons(self):
+        self.client.force_login(self.owner)
+        self.vote_json(self.tea.pk)
+        for url in ["/", f"/anket/{self.poll.pk}/"]:
+            with self.subTest(url=url):
+                response = self.client.get(url)
+                self.assertContains(response, "<strong>%25</strong> · 1 oy", html=False)
+                self.assertContains(response, "<strong>%75</strong> · 3 oy", html=False)
+                self.assertContains(response, "is-selected", count=1)
+                self.assertContains(response, "Senin anketin")
+                self.assertNotContains(response, "Sen de oy verebilirsin")
+                self.assertNotContains(response, 'name="option_id"')
+
+    def test_other_voters_still_see_nothing_before_voting(self):
+        # The owner's early results must not change what everyone else sees.
+        self.client.force_login(self.owner)
+        self.vote_json(self.tea.pk)
+        self.assert_no_results(self.client_class().get(f"/anket/{self.poll.pk}/"))
 
     def test_owner_sees_zero_votes(self):
         poll = make_poll(self.owner, question="Boş anket")
