@@ -98,3 +98,24 @@ class User(AbstractUser):
 
     def __str__(self):
         return self.username
+
+
+class RateLimitEvent(models.Model):
+    """One counted action (vote, signup, report) from one keyed IP digest.
+
+    Serverless instances share no memory, so rate limits are counted in the database.
+    Old rows are pruned opportunistically (see accounts/ratelimit.py).
+    """
+
+    scope = models.CharField(max_length=32)
+    key = models.CharField(max_length=64)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        indexes = [
+            models.Index(fields=["scope", "key", "created_at"], name="accounts_ratelimit_lookup"),
+            models.Index(fields=["created_at"], name="accounts_ratelimit_created"),
+        ]
+
+    def __str__(self):
+        return f"{self.scope}:{self.key[:8]}"

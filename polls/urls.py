@@ -9,6 +9,7 @@ urlpatterns = [
     path("anket/yeni/", views.create, name="create"),
     path("anket/<int:poll_id>/", views.detail, name="detail"),
     path("anket/<int:poll_id>/oy/", views.vote, name="vote"),
+    path("anket/<int:poll_id>/bildir/", views.report, name="report"),
     path("anket/<int:poll_id>/sil/", views.delete, name="delete"),
     path("anketlerim/", views.my_polls, name="my_polls"),
 ]

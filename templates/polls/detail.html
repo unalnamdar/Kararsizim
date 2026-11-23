@@ -7,5 +7,27 @@
 
 {% block content %}
   {% include "polls/_poll_card.html" with link_question=False show_delete=True %}
+
+  {% if not poll.is_owner %}
+    <details class="report">
+      <summary>Bu anketi bildir</summary>
+      <form method="post" action="{% url 'polls:report' poll.pk %}" class="report__form">
+        {% csrf_token %}
+        <div class="field">
+          <label for="report-reason">Neden bildiriyorsun?</label>
+          <select id="report-reason" name="reason" required>
+            <option value="">Bir neden seç</option>
+            {% for value, label in report_reasons %}<option value="{{ value }}">{{ label }}</option>{% endfor %}
+          </select>
+        </div>
+        <div class="field">
+          <label for="report-note">Eklemek istediğin bir şey var mı? <span class="muted">(isteğe bağlı)</span></label>
+          <input type="text" id="report-note" name="note" maxlength="200" autocomplete="off">
+        </div>
+        <button type="submit" class="button button--secondary button--small">Bildirimi gönder</button>
+      </form>
+    </details>
+  {% endif %}
+
   <p><a href="{% url 'polls:feed' %}">← Tüm anketler</a></p>
 {% endblock %}

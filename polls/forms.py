@@ -1,7 +1,7 @@
 from django import forms
 from django.db import transaction
 
-from .models import MAX_OPTIONS, MIN_OPTIONS, OPTION_MAX_LENGTH, QUESTION_MAX_LENGTH, Option, Poll
+from .models import MAX_OPTIONS, MIN_OPTIONS, OPTION_MAX_LENGTH, QUESTION_MAX_LENGTH, Option, Poll, Report
 
 
 def _collapse_spaces(value):
@@ -83,3 +83,18 @@ class PollForm(forms.Form):
             Option(poll=poll, text=text, position=index) for index, text in enumerate(self.cleaned_options)
         )
         return poll
+
+
+class ReportForm(forms.Form):
+    reason = forms.ChoiceField(
+        choices=Report.Reason.choices,
+        error_messages={"required": "Bir neden seç.", "invalid_choice": "Geçersiz bir neden seçtin."},
+    )
+    note = forms.CharField(
+        max_length=200,
+        required=False,
+        error_messages={"max_length": "Not en fazla 200 karakter olabilir."},
+    )
+
+    def clean_note(self):
+        return _collapse_spaces(self.cleaned_data.get("note"))

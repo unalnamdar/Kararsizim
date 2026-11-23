@@ -32,6 +32,7 @@ Kullanım: kullanıcı "Faz 1'i uygula" gibi bir komut verir.
 5. **Tasarım: kontrast öncelikli palet (Faz 4).** WCAG AA ölçülerek uygulandı (`config/test_design.py` her çalıştırmada denetler). Seçenek **kenarlıkları** arayüz bileşeni sayıldığı için ≥3:1 gerektiriyordu; mercan, turkuaz ve özellikle sarı koyulaştırıldı (sarı kenarlık hardal tonu `#B38500`; çubuk dolgusu ve zemin tonu parlak sarı kalır). Form alanı kenarlığı ve odak halkası da aynı nedenle koyu tonda.
 6. **Tasarım: dar ekran başlığı (Faz 4).** 360px'de başlık tek satır kalsın diye: "Anket oluştur" düğmesi "+ Anket"e kısalır, üye menüsü baş harfli yuvarlak düğme olur, misafirde "Kayıt ol" bağlantısı başlıktan kalkar (giriş sayfasındaki "Kayıt ol" bağlantısından erişilir). 30em ve üstünde hepsi tam görünür.
 7. **Sahip kendi anketine oy verebilir (2026-11-23, kullanıcı kararı).** Bölüm 1'deki "sahip oy veremez" kuralı kaldırıldı. Sahip sonuçları yine baştan görür; oy vermediği sürece sonuç çubuklarının her biri bir düğmedir ("Sen de oy verebilirsin"). Oy verince diğer herkes gibi tek oyu sayılır (ikinci deneme `409`, çıkış yapıp misafir olarak denemek de aynı tarayıcıda `409`), seçimi ✓ ile görünür ve çubuklar tıklanamaz olur. Diğer ziyaretçiler için hiçbir şey değişmedi: oy vermeden sonuç görmezler.
+8. **Faz 6 kapsamı ve kötüye kullanım parametreleri (2026-11-23, kullanıcı kararı).** Şimdi yapılacaklar: kötüye kullanım önlemleri, popüler sıralama + "oylamadıklarım" filtresi, profil sayfası. Parola sıfırlama sonraya. Kötüye kullanım: (a) hız sınırı **uygulamanın içinde, veritabanıyla** sayılır (sunucusuz ortamda bellek içi sayaç çalışmaz): oy 30/dk, kayıt 5/saat, bildirim 10/saat, her biri IP başına; yalnızca **başarılı** eylemler sayılır; aşınca `429` + `Retry-After`. (b) **Yumuşak IP tekilleştirme:** aynı IP özetinden bir ankete en fazla **5** oy (aşınca `403`); "zaten oy verdin" (`409`) bundan önce gelir. (c) IP **ham saklanmaz**: yalnızca `SECRET_KEY`'den türetilen anahtarla HMAC özeti (32 hex; IPv6 /64'e indirgenir). (d) IP yalnızca Vercel'in kendisinin yazdığı `X-Vercel-Forwarded-For`/`X-Forwarded-For` başlıklarından alınır (Vercel bunların üzerine yazar, taklit edilemez); başlık yoksa IP kontrolleri **devre dışı** kalır (yerel geliştirme, test). `REMOTE_ADDR` bilerek kullanılmaz: Vercel arkasında herkes için aynı altyapı adresidir ve sınır tüm siteyi kilitlerdi. (e) **Anket bildirme:** herkes bildirebilir (üye başına ya da IP özeti başına bir kez), sahip kendi anketini bildiremez; bildirimler yalnızca admin panelinde görünür, anket **otomatik gizlenmez**.
 
 ### Kapsam dışı (prototipte yapma)
 
@@ -121,7 +122,7 @@ kararsizim/
 
 - Oy veren üye değilse, imzalı ve `HttpOnly` bir `voter_id` çerezi (UUID4, 1 yıl, `SameSite=Lax`) üretilir; `voter_key` olarak saklanır.
 - Üye giriş yaptıysa oy `user` üzerinden tutulur.
-- **Bilinen sınır:** çerezi silen kişi tekrar oy verebilir. Prototip için kabul edildi; sıkılaştırma Faz 6'da.
+- **Bilinen sınır:** çerezi silen kişi tekrar oy verebilir. Faz 6'da sıkılaştırıldı (karar 8): aynı ağdan bir ankete en fazla 5 oy ve oy/kayıt için hız sınırı; çerezsiz tekil sınırı yine de yoktur.
 
 ---
 
@@ -268,7 +269,7 @@ if DATABASES["default"]["ENGINE"].endswith("postgresql"):
 
 Öncelik sırasıyla öneriler:
 1. Parola sıfırlama (e-posta gönderimi gerekir).
-2. Kötüye kullanım önlemleri: oy ve kayıt için hız sınırı, IP özeti ile ek tekilleştirme, anket bildirme.
+2. ✅ Kötüye kullanım önlemleri: oy ve kayıt için hız sınırı, IP özeti ile ek tekilleştirme, anket bildirme (karar 8).
 3. Akışta "Popüler" sıralaması ve "oylamadıklarım" filtresi.
 4. Kullanıcı profil sayfası (`/u/<kullaniciadi>/`).
 5. Anket bitiş süresi, oy değiştirme.

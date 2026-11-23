@@ -301,7 +301,7 @@ main:focus { outline: none; }
   font-weight: var(--weight-semibold);
 }
 
-.field input {
+.field input, .field select {
   display: block;
   width: 100%;
   min-height: var(--tap-size);
@@ -313,9 +313,9 @@ main:focus { outline: none; }
   font: inherit;
 }
 .field input::placeholder { color: var(--color-text-muted); opacity: 1; }
-.field input:focus { border-color: var(--color-primary); }
+.field input:focus, .field select:focus { border-color: var(--color-primary); }
 
-.field--error input { border-color: var(--color-danger); }
+.field--error input, .field--error select { border-color: var(--color-danger); }
 .field__help { margin: var(--space-1) 0 0; color: var(--color-text-muted); font-size: var(--text-sm); }
 .field__help ul { margin: 0; padding-left: var(--space-4); }
 .field__error { margin: var(--space-1) 0 0; color: var(--color-danger); font-size: var(--text-sm); font-weight: var(--weight-semibold); }
@@ -530,6 +530,18 @@ main:focus { outline: none; }
   color: var(--color-text);
   font: inherit;
 }
+
+/* ---------- Report ---------- */
+.report { margin: var(--space-4) 0; }
+.report summary {
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--tap-size-small);
+  color: var(--color-text-muted);
+  font-size: var(--text-sm);
+  cursor: pointer;
+}
+.report__form { margin-top: var(--space-3); }
 
 /* ---------- Motion preferences ---------- */
 @media (prefers-reduced-motion: reduce) {

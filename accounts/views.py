@@ -7,6 +7,7 @@ from django.shortcuts import redirect, render
 from django.utils.http import url_has_allowed_host_and_scheme
 from django.views.decorators.http import require_http_methods
 
+from . import ratelimit
 from .forms import LoginForm, SignUpForm
 
 
@@ -27,6 +28,15 @@ def signup(request):
     next_url = _safe_next(request)
     form = SignUpForm(request.POST or None)
     if request.method == "POST" and form.is_valid():
+        ip_key = ratelimit.request_digest(request)
+        wait = ratelimit.check("signup", ip_key)
+        if wait:
+            form.add_error(
+                None, f"Bu ağdan kısa sürede çok sayıda hesap açıldı. {ratelimit.human_wait(wait)} sonra tekrar dene."
+            )
+            response = render(request, "accounts/signup.html", {"form": form, "next": next_url}, status=429)
+            response["Retry-After"] = str(wait)
+            return response
         try:
             with transaction.atomic():
                 user = form.save()
@@ -34,6 +44,7 @@ def signup(request):
             # Someone took the email/username between validation and save.
             form.add_error(None, "Bu e-posta veya kullanıcı adı az önce alındı. Lütfen başka birini dene.")
         else:
+            ratelimit.record("signup", ip_key)
             login(request, user)
             messages.success(request, f"Hoş geldin, @{user.username}!")
             return redirect(next_url or settings.LOGIN_REDIRECT_URL)

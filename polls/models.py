@@ -74,6 +74,8 @@ class Vote(models.Model):
         verbose_name="üye",
     )
     voter_key = models.CharField("ziyaretçi kimliği", max_length=36, null=True, blank=True)
+    # Keyed hash of the voter's IP (never the IP itself); NULL when the IP was unknown.
+    ip_hash = models.CharField("IP özeti", max_length=32, null=True, blank=True)
     created_at = models.DateTimeField("oy zamanı", auto_now_add=True)
 
     class Meta:
@@ -95,6 +97,42 @@ class Vote(models.Model):
                 name="polls_vote_has_identity",
             ),
         ]
+        indexes = [models.Index(fields=["poll", "ip_hash"], name="polls_vote_poll_ip")]
 
     def __str__(self):
         return f"{self.poll_id} → {self.option_id}"
+
+
+class Report(models.Model):
+    """A visitor's report about a poll. Only visible in the admin; nothing is hidden automatically."""
+
+    class Reason(models.TextChoices):
+        SPAM = "spam", "Spam ya da reklam"
+        ABUSIVE = "abusive", "Hakaret ya da uygunsuz içerik"
+        OTHER = "other", "Diğer"
+
+    poll = models.ForeignKey(Poll, on_delete=models.CASCADE, related_name="reports", verbose_name="anket")
+    # "u<user id>" for members, "i<ip digest>" for guests: at most one report per person per poll.
+    reporter = models.CharField("bildiren", max_length=40)
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="reports",
+        verbose_name="üye",
+    )
+    reason = models.CharField("neden", max_length=16, choices=Reason.choices)
+    note = models.CharField("not", max_length=200, blank=True)
+    created_at = models.DateTimeField("bildirim zamanı", auto_now_add=True)
+
+    class Meta:
+        ordering = ["-created_at"]
+        verbose_name = "bildirim"
+        verbose_name_plural = "bildirimler"
+        constraints = [
+            models.UniqueConstraint(fields=["poll", "reporter"], name="polls_report_unique_reporter"),
+        ]
+
+    def __str__(self):
+        return f"{self.poll_id}: {self.get_reason_display()}"

@@ -11,6 +11,9 @@ VOTER_COOKIE = "voter_id"
 VOTER_COOKIE_SALT = "polls.voter_id"
 VOTER_COOKIE_MAX_AGE = 60 * 60 * 24 * 365
 
+# Soft per-network cap: classmates on one Wi-Fi can all vote, but a script cannot stuff the box.
+MAX_VOTES_PER_IP = 5
+
 
 # --- Anonymous voter cookie -------------------------------------------------
 
