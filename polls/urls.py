@@ -12,4 +12,5 @@ urlpatterns = [
     path("anket/<int:poll_id>/bildir/", views.report, name="report"),
     path("anket/<int:poll_id>/sil/", views.delete, name="delete"),
     path("anketlerim/", views.my_polls, name="my_polls"),
+    path("u/<str:username>/", views.profile, name="profile"),
 ]

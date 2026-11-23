@@ -387,7 +387,8 @@ main:focus { outline: none; }
 
 /* ---------- Poll card ---------- */
 .poll-card__meta { margin: 0 0 var(--space-2); color: var(--color-text-muted); font-size: var(--text-sm); }
-.poll-card__author { color: var(--color-text); font-weight: var(--weight-bold); }
+.poll-card__author { color: var(--color-text); font-weight: var(--weight-bold); text-decoration: none; }
+.poll-card__author:hover { text-decoration: underline; }
 
 .poll-card__question {
   margin: 0 0 var(--space-4);

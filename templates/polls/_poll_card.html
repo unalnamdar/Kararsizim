@@ -1,7 +1,7 @@
 {% load humanize %}
 <article class="card poll-card" aria-labelledby="poll-{{ poll.pk }}-question" data-poll="{{ poll.pk }}">
   <p class="poll-card__meta">
-    <span class="poll-card__author">@{{ poll.author.username }}</span>
+    <a class="poll-card__author" href="{% url 'polls:profile' poll.author.username %}">@{{ poll.author.username }}</a>
     · <time datetime="{{ poll.created_at|date:'c' }}">{{ poll.created_at|naturaltime }}</time>
   </p>
 

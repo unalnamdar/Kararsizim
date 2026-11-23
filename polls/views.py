@@ -1,6 +1,7 @@
 import json
 
 from django.contrib import messages
+from django.contrib.auth import get_user_model
 from django.contrib.auth.decorators import login_required
 from django.core.exceptions import PermissionDenied
 from django.db import IntegrityError, transaction
@@ -16,6 +17,8 @@ from accounts import ratelimit
 from . import voting
 from .forms import PollForm, ReportForm
 from .models import Poll, Report, Vote
+
+User = get_user_model()
 
 PAGE_SIZE = 20
 FEED_SORTS = ("yeni", "populer")
@@ -113,6 +116,20 @@ def create(request):
         messages.success(request, "Anketin yayında! Bağlantıyı paylaşıp oy toplayabilirsin.")
         return redirect(poll)
     return render(request, "polls/create.html", {"form": form})
+
+
+def profile(request, username):
+    """Public page with one member's polls. Usernames are stored lowercase; the e-mail never appears."""
+    owner = get_object_or_404(User, username=username.lower(), is_active=True)
+    context = _paginate(request, _poll_queryset().filter(author=owner))
+    context.update(
+        {
+            "profile_user": owner,
+            "poll_count": Poll.objects.filter(author=owner).count(),
+            "is_me": request.user.is_authenticated and request.user.pk == owner.pk,
+        }
+    )
+    return render(request, "polls/profile.html", context)
 
 
 @login_required

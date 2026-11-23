@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+
+{% block title %}@{{ profile_user.username }} · Kararsızım{% endblock %}
+{% block description %}@{{ profile_user.username }} kullanıcısının anketleri{% endblock %}
+{% block og_title %}@{{ profile_user.username }}{% endblock %}
+{% block og_description %}@{{ profile_user.username }} kullanıcısının anketleri{% endblock %}
+
+{% block content %}
+  <section class="card profile-card">
+    <h1 class="page-title">@{{ profile_user.username }}</h1>
+    <p class="muted">{{ poll_count }} anket · Üyelik: {{ profile_user.date_joined|date:"F Y" }}</p>
+    {% if is_me %}<p><a href="{% url 'polls:my_polls' %}">Anketlerimi yönet</a></p>{% endif %}
+  </section>
+
+  {% if polls %}
+    {% include "polls/_poll_list.html" %}
+  {% else %}
+    <section class="card empty-state">
+      <p class="empty-state__icon" aria-hidden="true">📝</p>
+      {% if is_me %}
+        <p>Henüz anket açmadın.</p>
+        <a class="button" href="{% url 'polls:create' %}">İlk anketini oluştur</a>
+      {% else %}
+        <p>@{{ profile_user.username }} henüz anket açmamış.</p>
+      {% endif %}
+    </section>
+  {% endif %}
+{% endblock %}

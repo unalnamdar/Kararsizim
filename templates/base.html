@@ -47,6 +47,7 @@
               <span class="menu__caret" aria-hidden="true"></span>
             </summary>
             <div class="menu__panel">
+              <a class="menu__item" href="{% url 'polls:profile' user.username %}">Profilim</a>
               <a class="menu__item" href="{% url 'polls:my_polls' %}">Anketlerim</a>
               <form method="post" action="{% url 'accounts:logout' %}">
                 {% csrf_token %}
