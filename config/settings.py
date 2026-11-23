@@ -112,6 +112,33 @@ AUTH_PASSWORD_VALIDATORS = [
 ]
 
 
+# Email (used for password reset only).
+# Production needs EMAIL_HOST (+ credentials) as environment variables; without EMAIL_HOST the password
+# reset feature is switched off: its pages answer 404 and the login page shows no link, so nothing is
+# promised that cannot be delivered. Locally (DEBUG) emails are printed to the terminal instead.
+
+EMAIL_HOST = os.environ.get("EMAIL_HOST", "").strip()
+EMAIL_PORT = int(os.environ.get("EMAIL_PORT", "587") or 587)
+EMAIL_HOST_USER = os.environ.get("EMAIL_HOST_USER", "").strip()
+EMAIL_HOST_PASSWORD = os.environ.get("EMAIL_HOST_PASSWORD", "")
+EMAIL_USE_SSL = EMAIL_PORT == 465
+EMAIL_USE_TLS = not EMAIL_USE_SSL  # STARTTLS (port 587); 465 uses implicit TLS instead
+EMAIL_TIMEOUT = 10
+DEFAULT_FROM_EMAIL = os.environ.get("DEFAULT_FROM_EMAIL", "").strip() or (
+    f"Kararsızım <{EMAIL_HOST_USER}>" if "@" in EMAIL_HOST_USER else "Kararsızım <noreply@localhost>"
+)
+
+if EMAIL_HOST:
+    EMAIL_BACKEND = "django.core.mail.backends.smtp.EmailBackend"
+elif DEBUG:
+    EMAIL_BACKEND = "django.core.mail.backends.console.EmailBackend"
+else:
+    EMAIL_BACKEND = "django.core.mail.backends.dummy.EmailBackend"  # never reached: the feature is off
+
+PASSWORD_RESET_ENABLED = bool(EMAIL_HOST) or DEBUG
+PASSWORD_RESET_TIMEOUT = 60 * 60  # reset links stay valid for one hour (Django's default is three days)
+
+
 # Internationalization
 
 LANGUAGE_CODE = "tr"

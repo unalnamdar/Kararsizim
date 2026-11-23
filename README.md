@@ -56,6 +56,11 @@ Vercel → Project → Settings → Environment Variables. **Production, Preview
 | `SECRET_KEY` | Uzun rastgele bir dizi (aşağıdaki komutla üret). **Sensitive** olarak işaretle. |
 | `DATABASE_URL` | Supabase **Transaction pooler** dizesi (port **6543**). **Sensitive** olarak işaretle. |
 | `DEBUG` | Tanımlama ya da `False` yaz. Tanımlı değilse zaten `False`'tur. |
+| `EMAIL_HOST` | **Parola sıfırlama için** SMTP sunucusu (aşağıya bak). Boşsa parola sıfırlama üretimde kapalıdır. |
+| `EMAIL_PORT` | SMTP portu. Varsayılan `587` (STARTTLS); `465` yazılırsa örtük TLS kullanılır. |
+| `EMAIL_HOST_USER` | SMTP kullanıcı adı. **Sensitive** olarak işaretle. |
+| `EMAIL_HOST_PASSWORD` | SMTP parolası ya da uygulama parolası. **Sensitive** olarak işaretle. |
+| `DEFAULT_FROM_EMAIL` | Gönderen, ör. `Kararsızım <adres@ornek.com>`. Boşsa `EMAIL_HOST_USER` kullanılır. |
 
 Gizli anahtarı yerelde üretip yalnızca Vercel paneline yapıştır; bir dosyaya yazma, depoya koyma:
 
@@ -71,6 +76,28 @@ postgresql://postgres.<proje-ref>:<PAROLA>@aws-1-eu-central-1.pooler.supabase.co
 ```
 
 Yerel `.env`'deki **Session pooler** dizesiyle (port 5432) aynı yer ve kullanıcı; yalnızca port farklıdır.
+
+### Parola sıfırlama (e-posta)
+
+Parola sıfırlama e-posta gönderir. Hangi sağlayıcıyı kullanacağın sana kalmış; herhangi bir **SMTP** hizmeti çalışır
+(sağlayıcıların koşulları ve ücretsiz kotaları değişebilir, SMTP bilgilerini kendi panelinden al).
+
+- **`EMAIL_HOST` tanımlı değilse özellik kapalıdır:** `/parola-sifirla/` adresleri `404` verir ve giriş sayfasında
+  "Parolanı mı unuttun?" bağlantısı görünmez. Yani kodu e-posta hazır olmadan da yayınlamak güvenlidir.
+- **Yerelde** (`DEBUG=True`) e-postalar gönderilmez, `runserver`'ın terminaline yazılır; bağlantıyı oradan kopyalarsın.
+- **Gerçek gönderimi önce yerelde dene:** SMTP değerlerini yerel `.env`'e yaz, sonra
+  `python manage.py sendtestemail kendi-adresin@ornek.com` komutunu çalıştır. Gelmezse sorun Vercel'de değil
+  bilgilerdedir.
+- **Vercel'de:** `EMAIL_HOST`, `EMAIL_PORT`, `EMAIL_HOST_USER`, `EMAIL_HOST_PASSWORD` ve (istersen) `DEFAULT_FROM_EMAIL`
+  değişkenlerini ekle, sonra **Redeploy** et. Giriş sayfasında bağlantı görününce özellik açılmıştır.
+- **Gmail ile (örnek):** `smtp.gmail.com`, port `587`, kullanıcı adı Gmail adresin, parola Google hesabında iki adımlı
+  doğrulama açıkken oluşturulan 16 karakterlik **uygulama parolası** (normal parolan değil). Gönderen adresi senin
+  Gmail adresin olarak görünür.
+
+Güvenlik: bağlantı 1 saat geçerlidir ve parola değişince çalışmaz; her istek e-posta başına saatte 3, IP başına saatte
+5 ile sınırlıdır; hesap olup olmadığı yanıttan anlaşılmaz (hep aynı sayfa); parola değişince diğer cihazlardaki
+oturumlar kapanır; sıfırlamadan sonra otomatik giriş yapılmaz. Bilinen sınır: e-posta yalnızca kayıtlı adreslere
+gittiği için yanıt süresi çok az farklı olabilir (hesap varlığını ancak zamanlamayla sezmek mümkün).
 
 ### İlk yayın adımları
 

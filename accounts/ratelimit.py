@@ -21,6 +21,8 @@ LIMITS = {
     "vote": (30, 60),      # votes per minute from one IP
     "signup": (5, 3600),   # accounts per hour from one IP
     "report": (10, 3600),  # reports per hour from one IP
+    "password_reset": (5, 3600),        # reset requests per hour from one IP, for any address
+    "password_reset_email": (3, 3600),  # reset emails per hour to one address (stops mail bombing)
 }
 
 CLEANUP_AFTER = timedelta(days=1)
@@ -66,6 +68,15 @@ def human_wait(seconds):
     if seconds < 90:
         return f"{seconds} saniye"
     return f"{math.ceil(seconds / 60)} dakika"
+
+
+def email_digest(email):
+    """Keyed hash of an email address, used only as a rate-limit key (so no address is stored)."""
+    normalized = (email or "").strip().lower()
+    if not normalized:
+        return None
+    key = ("accounts.email-digest|" + settings.SECRET_KEY).encode()
+    return hmac.new(key, normalized.encode(), hashlib.sha256).hexdigest()[:32]
 
 
 def request_digest(request):

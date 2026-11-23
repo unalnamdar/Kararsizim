@@ -2,7 +2,7 @@ import re
 
 from django import forms
 from django.contrib.auth import password_validation
-from django.contrib.auth.forms import AuthenticationForm
+from django.contrib.auth.forms import AuthenticationForm, PasswordResetForm, SetPasswordForm
 
 from .models import (
     USERNAME_MAX_LENGTH,
@@ -126,3 +126,56 @@ class LoginForm(AuthenticationForm):
 
     def clean_username(self):
         return normalize_email_address(self.cleaned_data.get("username"))
+
+
+class PasswordResetRequestForm(PasswordResetForm):
+    """Asks for the e-mail address. Django only mails active accounts that have a usable password."""
+
+    email = forms.EmailField(
+        label="E-posta",
+        max_length=254,
+        widget=forms.EmailInput(attrs={"autocomplete": "email", "autofocus": True}),
+        error_messages={"required": "E-posta adresini yazmalısın.", "invalid": "Geçerli bir e-posta adresi gir."},
+    )
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        if self.is_bound:
+            # After a failed submit the error summary gets the focus (site.js), not the field.
+            self.fields["email"].widget.attrs.pop("autofocus", None)
+
+
+class SetNewPasswordForm(SetPasswordForm):
+    """New password form with the same wording and validators as sign-up."""
+
+    error_messages = {"password_mismatch": "Parolalar birbiriyle eşleşmiyor."}
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields["new_password1"].label = "Yeni parola"
+        self.fields["new_password1"].help_text = (
+            "En az 8 karakter; yalnızca rakamlardan oluşmamalı ve çok yaygın olmamalı."
+        )
+        self.fields["new_password2"].label = "Yeni parola (tekrar)"
+        self.fields["new_password2"].help_text = ""  # Django's English-ish default repeats the obvious
+
+    def clean(self):
+        """A mismatch is the repeat field's error. (Skips SetPasswordForm.clean, which does the same job.)"""
+        password1 = self.cleaned_data.get("new_password1")
+        password2 = self.cleaned_data.get("new_password2")
+        if password1 and password2 and password1 != password2:
+            self.add_error(
+                "new_password2",
+                forms.ValidationError(self.error_messages["password_mismatch"], code="password_mismatch"),
+            )
+        return forms.Form.clean(self)
+
+    def _post_clean(self):
+        """A weak password is the first field's error; Django would blame the repeat field."""
+        forms.Form._post_clean(self)
+        password = self.cleaned_data.get("new_password1")
+        if password:
+            try:
+                password_validation.validate_password(password, self.user)
+            except forms.ValidationError as error:
+                self.add_error("new_password1", error)

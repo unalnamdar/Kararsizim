@@ -71,6 +71,27 @@ class IpDigestTests(SimpleTestCase):
         self.assertEqual(digest_of("::ffff:203.0.113.7"), digest_of("203.0.113.7"))
 
 
+class EmailDigestTests(SimpleTestCase):
+    def test_case_and_whitespace_do_not_matter(self):
+        self.assertEqual(ratelimit.email_digest(" Ayse@Example.com "), ratelimit.email_digest("ayse@example.com"))
+
+    def test_distinct_addresses_differ_and_no_address_is_left_in_the_digest(self):
+        digest = ratelimit.email_digest("ayse@example.com")
+        self.assertNotEqual(digest, ratelimit.email_digest("can@example.com"))
+        self.assertRegex(digest, r"^[0-9a-f]{32}$")
+        self.assertNotIn("ayse", digest)
+
+    def test_empty_input_has_no_digest(self):
+        self.assertIsNone(ratelimit.email_digest(""))
+        self.assertIsNone(ratelimit.email_digest(None))
+
+    def test_digest_is_keyed_by_secret_key(self):
+        before = ratelimit.email_digest("ayse@example.com")
+        with override_settings(SECRET_KEY="another-secret-key-" + "z" * 40):
+            after = ratelimit.email_digest("ayse@example.com")
+        self.assertNotEqual(before, after)
+
+
 class LimiterTests(TestCase):
     def setUp(self):
         patcher = mock.patch.dict(ratelimit.LIMITS, {"vote": (3, 60), "signup": (2, 3600), "report": (1, 3600)})

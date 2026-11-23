@@ -44,7 +44,9 @@ print(json.dumps({
 
 def run_python(*args, **env):
     # A throwaway random key: a repetitive one such as "x" * 60 would trigger check --deploy's W009.
-    full_env = {**os.environ, "DEBUG": "False", "SECRET_KEY": get_random_secret_key(), "DATABASE_URL": "", **env}
+    # Empty values beat anything in a developer's own .env, so the probes always start from "nothing configured".
+    blank = {"EMAIL_HOST": "", "EMAIL_PORT": "", "EMAIL_HOST_USER": "", "EMAIL_HOST_PASSWORD": "", "DEFAULT_FROM_EMAIL": ""}
+    full_env = {**os.environ, "DEBUG": "False", "SECRET_KEY": get_random_secret_key(), "DATABASE_URL": "", **blank, **env}
     return subprocess.run(
         [sys.executable, *args], cwd=BASE_DIR, env=full_env, capture_output=True, text=True, timeout=120
     )
@@ -85,7 +87,7 @@ class VercelFilesTests(SimpleTestCase):
 
     def test_example_env_has_no_secrets(self):
         lines = (BASE_DIR / ".env.example").read_text().splitlines()
-        for name in ("SECRET_KEY", "DATABASE_URL"):
+        for name in ("SECRET_KEY", "DATABASE_URL", "EMAIL_HOST", "EMAIL_HOST_USER", "EMAIL_HOST_PASSWORD", "DEFAULT_FROM_EMAIL"):
             line = next(line for line in lines if line.startswith(f"{name}="))
             self.assertEqual(line, f"{name}=", f"{name} must be empty in .env.example")
         ignored = (BASE_DIR / ".gitignore").read_text().splitlines()
@@ -146,3 +148,50 @@ class ProductionSettingsTests(SimpleTestCase):
     def test_sqlite_fallback_without_database_url(self):
         s = production_settings()
         self.assertTrue(s["engine"].endswith("sqlite3"))
+
+
+EMAIL_PROBE = """
+import json, os
+os.environ["DJANGO_SETTINGS_MODULE"] = "config.settings"
+from django.conf import settings as s
+print(json.dumps({
+    "backend": s.EMAIL_BACKEND, "enabled": s.PASSWORD_RESET_ENABLED, "host": s.EMAIL_HOST, "port": s.EMAIL_PORT,
+    "tls": s.EMAIL_USE_TLS, "ssl": s.EMAIL_USE_SSL, "sender": s.DEFAULT_FROM_EMAIL, "timeout": s.EMAIL_TIMEOUT,
+}))
+"""
+
+
+def email_settings(**env):
+    result = run_python("-c", EMAIL_PROBE, **env)
+    assert result.returncode == 0, result.stderr
+    return json.loads(result.stdout.strip().splitlines()[-1])
+
+
+class EmailSettingsTests(SimpleTestCase):
+    def test_production_without_smtp_switches_password_reset_off(self):
+        s = email_settings()
+        self.assertFalse(s["enabled"])
+        self.assertTrue(s["backend"].endswith("dummy.EmailBackend"))  # nothing is promised, nothing is printed
+
+    def test_local_development_prints_emails_to_the_terminal(self):
+        s = email_settings(DEBUG="True")
+        self.assertTrue(s["enabled"])
+        self.assertTrue(s["backend"].endswith("console.EmailBackend"))
+
+    def test_smtp_configuration_switches_it_on(self):
+        s = email_settings(EMAIL_HOST="smtp.example.com", EMAIL_HOST_USER="gonderen@example.com")
+        self.assertTrue(s["enabled"])
+        self.assertTrue(s["backend"].endswith("smtp.EmailBackend"))
+        self.assertEqual((s["host"], s["port"]), ("smtp.example.com", 587))
+        self.assertTrue(s["tls"] and not s["ssl"])  # STARTTLS on 587
+        self.assertEqual(s["sender"], "Kararsızım <gonderen@example.com>")
+        self.assertEqual(s["timeout"], 10)
+
+    def test_port_465_uses_implicit_tls(self):
+        s = email_settings(EMAIL_HOST="smtp.example.com", EMAIL_PORT="465")
+        self.assertTrue(s["ssl"] and not s["tls"])
+
+    def test_explicit_sender_wins(self):
+        s = email_settings(EMAIL_HOST="smtp.example.com", EMAIL_HOST_USER="login@example.com",
+                           DEFAULT_FROM_EMAIL="Kararsızım <merhaba@ornek.com>")
+        self.assertEqual(s["sender"], "Kararsızım <merhaba@ornek.com>")

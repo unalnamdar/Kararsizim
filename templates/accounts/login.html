@@ -16,6 +16,10 @@
       <button type="submit" class="button button--block">Giriş yap</button>
     </form>
 
+    {% if password_reset_enabled %}
+      <p class="muted auth-card__switch"><a href="{% url 'accounts:password_reset' %}">Parolanı mı unuttun?</a></p>
+    {% endif %}
+
     <p class="muted auth-card__switch">
       Hesabın yok mu?
       <a href="{% url 'accounts:signup' %}{% if next %}?next={{ next|urlencode }}{% endif %}">Kayıt ol</a>
