@@ -85,6 +85,10 @@ Yerel `.env`'deki **Session pooler** dizesiyle (port 5432) aynı yer ve kullanı
 6. Yönetici hesabı: yerelde, `.env` Supabase'e bağlıyken `python manage.py createsuperuser`
    (e-posta, kullanıcı adı, parola). Hesap Supabase'te oluşur ve yayındaki `/admin/` ile de çalışır.
 
+Canlı adres: https://kararsizim-orcin.vercel.app
+
+> Not: Vercel proje adı başkası tarafından alınmışsa adrese bir ek getirir. `kararsizim.vercel.app` başka birine ait; paylaşacağın adres, Vercel'in projenin **Domains** sayfasında gösterdiğidir.
+
 ### Yayın sonrası kontrol listesi
 
 - Ana sayfa açılıyor, stiller ve yazı tipi yüklü (statik dosyalar CDN'den).
