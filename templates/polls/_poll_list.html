@@ -4,6 +4,6 @@
 
 {% if next_page %}
   <p class="load-more">
-    <a class="button button--secondary" href="?sayfa={{ next_page }}">Daha fazla</a>
+    <a class="button button--secondary" href="?{{ query_prefix }}sayfa={{ next_page }}">Daha fazla</a>
   </p>
 {% endif %}

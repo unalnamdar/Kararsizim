@@ -1,9 +1,12 @@
 """Voter identity, "has voted" lookups and result calculation."""
 
 import uuid
+from datetime import timedelta
 
 from django.conf import settings
-from django.db.models import Count, Prefetch, Q
+from django.db.models import Count, IntegerField, OuterRef, Prefetch, Q, Subquery
+from django.db.models.functions import Coalesce
+from django.utils import timezone
 
 from .models import Option, Vote
 
@@ -13,6 +16,9 @@ VOTER_COOKIE_MAX_AGE = 60 * 60 * 24 * 365
 
 # Soft per-network cap: classmates on one Wi-Fi can all vote, but a script cannot stuff the box.
 MAX_VOTES_PER_IP = 5
+
+# "Popüler" ranks polls by the votes they got in this window, so old favourites do not stay on top forever.
+POPULAR_WINDOW = timedelta(days=7)
 
 
 # --- Anonymous voter cookie -------------------------------------------------
@@ -63,6 +69,29 @@ def voted_options(user, voter_key, poll_ids):
         return {}
     rows = Vote.objects.filter(condition, poll_id__in=poll_ids).values_list("poll_id", "option_id")
     return dict(rows)
+
+
+def exclude_voted(queryset, request):
+    """Polls this visitor (member or browser) has not voted on yet; unchanged without any identity."""
+    condition = identity_filter(request.user, get_voter_key(request))
+    if condition is None:
+        return queryset
+    return queryset.exclude(pk__in=Vote.objects.filter(condition).values("poll_id"))
+
+
+def order_by_popularity(queryset):
+    """Most votes in the last POPULAR_WINDOW first; ties (and zero) fall back to newest first."""
+    since = timezone.now() - POPULAR_WINDOW
+    recent = (
+        Vote.objects.filter(poll=OuterRef("pk"), created_at__gte=since)
+        .order_by()
+        .values("poll")
+        .annotate(total=Count("pk"))
+        .values("total")
+    )
+    return queryset.annotate(recent_votes=Coalesce(Subquery(recent, output_field=IntegerField()), 0)).order_by(
+        "-recent_votes", "-created_at", "-id"
+    )
 
 
 # --- Results ----------------------------------------------------------------

@@ -6,6 +6,8 @@ from django.core.exceptions import PermissionDenied
 from django.db import IntegrityError, transaction
 from django.http import Http404, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
+from django.urls import reverse
+from django.utils.http import urlencode
 from django.utils.text import Truncator
 from django.views.decorators.http import require_http_methods, require_POST
 
@@ -16,6 +18,8 @@ from .forms import PollForm, ReportForm
 from .models import Poll, Report, Vote
 
 PAGE_SIZE = 20
+FEED_SORTS = ("yeni", "populer")
+FILTER_UNVOTED = "oylamadiklarim"
 
 
 def _poll_queryset():
@@ -44,8 +48,47 @@ def _paginate(request, queryset):
     }
 
 
+def _feed_params(sort, only_unvoted):
+    params = {}
+    if sort != "yeni":
+        params["sirala"] = sort
+    if only_unvoted:
+        params["filtre"] = FILTER_UNVOTED
+    return params
+
+
+def _feed_url(sort, only_unvoted):
+    params = _feed_params(sort, only_unvoted)
+    base = reverse("polls:feed")
+    return f"{base}?{urlencode(params)}" if params else base
+
+
 def feed(request):
-    return render(request, "polls/feed.html", _paginate(request, _poll_queryset()))
+    sort = request.GET.get("sirala")
+    sort = sort if sort in FEED_SORTS else "yeni"
+    only_unvoted = request.GET.get("filtre") == FILTER_UNVOTED
+
+    queryset = _poll_queryset()
+    if only_unvoted:
+        queryset = voting.exclude_voted(queryset, request)
+    if sort == "populer":
+        queryset = voting.order_by_popularity(queryset)
+
+    context = _paginate(request, queryset)
+    prefix = urlencode(_feed_params(sort, only_unvoted))
+    context.update(
+        {
+            "sort": sort,
+            "only_unvoted": only_unvoted,
+            "query_prefix": f"{prefix}&" if prefix else "",  # keeps sort and filter on "Daha fazla"
+            "feed_links": {
+                "yeni": _feed_url("yeni", only_unvoted),
+                "populer": _feed_url("populer", only_unvoted),
+                "toggle": _feed_url(sort, not only_unvoted),
+            },
+        }
+    )
+    return render(request, "polls/feed.html", context)
 
 
 def _share_description(poll):

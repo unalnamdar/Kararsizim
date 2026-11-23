@@ -3,10 +3,25 @@
 {% block title %}Kararsızım · Kararsız kalınca topluluğa sor{% endblock %}
 
 {% block content %}
-  <h1 class="visually-hidden">Kararsızım — en yeni anketler</h1>
+  <h1 class="visually-hidden">Kararsızım — anketler</h1>
+
+  <nav class="feed-controls" aria-label="Akış seçenekleri">
+    <ul class="chips">
+      <li><a class="chip{% if sort == 'yeni' %} is-active{% endif %}" href="{{ feed_links.yeni }}"{% if sort == 'yeni' %} aria-current="true"{% endif %}>Yeni</a></li>
+      <li><a class="chip{% if sort == 'populer' %} is-active{% endif %}" href="{{ feed_links.populer }}"{% if sort == 'populer' %} aria-current="true"{% endif %}>Popüler</a></li>
+      <li><a class="chip{% if only_unvoted %} is-active{% endif %}" href="{{ feed_links.toggle }}"{% if only_unvoted %} aria-current="true"{% endif %}>Oylamadıklarım</a></li>
+    </ul>
+    {% if sort == 'populer' %}<p class="feed-controls__hint">Son 7 günde en çok oy alanlar önde.</p>{% endif %}
+  </nav>
 
   {% if polls %}
     {% include "polls/_poll_list.html" %}
+  {% elif only_unvoted %}
+    <section class="card empty-state">
+      <p class="empty-state__icon" aria-hidden="true">🎉</p>
+      <p>Oylamadığın anket kalmadı. Hepsine oy verdin!</p>
+      <a class="button button--secondary" href="{{ feed_links.toggle }}">Tüm anketleri göster</a>
+    </section>
   {% else %}
     <section class="card empty-state">
       <p class="empty-state__icon" aria-hidden="true">🤔</p>
