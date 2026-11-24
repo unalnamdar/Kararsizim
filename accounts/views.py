@@ -72,6 +72,14 @@ class SignInView(LoginView):
         context["password_reset_enabled"] = settings.PASSWORD_RESET_ENABLED
         return context
 
+    def form_invalid(self, form):
+        response = super().form_invalid(form)
+        wait = getattr(form, "rate_limit_wait", None)
+        if wait:
+            response.status_code = 429
+            response["Retry-After"] = str(wait)
+        return response
+
 
 class SignOutView(LogoutView):
     """Django's LogoutView only accepts POST."""

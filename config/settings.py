@@ -91,6 +91,10 @@ DATABASES = {
         ssl_require=_database_url.startswith(("postgres://", "postgresql://")) and not DEBUG,
     )
 }
+if DATABASES["default"]["ENGINE"].endswith("sqlite3"):
+    # Take the write lock when a transaction starts, so "count, then save" blocks (e.g. the per-network vote
+    # cap) run one after another locally the way row locks make them on PostgreSQL.
+    DATABASES["default"].setdefault("OPTIONS", {})["transaction_mode"] = "IMMEDIATE"
 if DATABASES["default"]["ENGINE"].endswith("postgresql"):
     DATABASES["default"]["DISABLE_SERVER_SIDE_CURSORS"] = True
     DATABASES["default"].setdefault("OPTIONS", {})["prepare_threshold"] = None

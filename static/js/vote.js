@@ -120,7 +120,7 @@
       const rendered = renderResults(form, data);
       setFooter(card, data.total);
       if (response.status === 409) {
-        showError(card, "Bu ankete zaten oy vermiştin.");  // role="alert" announces it
+        showError(card, data.message || "Bu ankete zaten oy vermiştin.");  // role="alert" announces it
       } else if (rendered.chosen) {
         announce(
           card,

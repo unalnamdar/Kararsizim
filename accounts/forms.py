@@ -4,6 +4,7 @@ from django import forms
 from django.contrib.auth import password_validation
 from django.contrib.auth.forms import AuthenticationForm, PasswordResetForm, SetPasswordForm
 
+from . import ratelimit
 from .models import (
     USERNAME_MAX_LENGTH,
     USERNAME_MIN_LENGTH,
@@ -100,7 +101,34 @@ class SignUpForm(forms.ModelForm):
         return user
 
 
-class LoginForm(AuthenticationForm):
+class LoginThrottleMixin:
+    """Limits password guessing per network, for any address tried (site login and admin login share it).
+
+    Only real password checks count (a malformed address never reaches one), a successful login is free, and
+    while a network is locked out even the right password is refused: otherwise the limit would only slow
+    the attacker down by one request per guess.
+    """
+
+    rate_limit_wait = None
+
+    def clean(self):
+        if not (self.cleaned_data.get("username") and self.cleaned_data.get("password")):
+            return super().clean()
+        digest = ratelimit.request_digest(self.request) if self.request is not None else None
+        wait, event = ratelimit.reserve("login", digest)
+        if wait:
+            self.rate_limit_wait = wait
+            raise forms.ValidationError(
+                f"Çok fazla başarısız giriş denemesi. {ratelimit.human_wait(wait)} sonra tekrar dene.",
+                code="rate_limited",
+            )
+        cleaned = super().clean()  # a wrong password raises here, so its attempt stays counted
+        if event is not None:
+            event.delete()
+        return cleaned
+
+
+class LoginForm(LoginThrottleMixin, AuthenticationForm):
     """Email + password. The field is named "username" by Django, but holds the email."""
 
     username = forms.EmailField(

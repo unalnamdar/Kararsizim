@@ -2,6 +2,7 @@
 
 import uuid
 from datetime import timedelta
+from typing import NamedTuple
 
 from django.conf import settings
 from django.db.models import Count, IntegerField, OuterRef, Prefetch, Q, Subquery
@@ -62,13 +63,29 @@ def identity_filter(user, voter_key):
     return condition or None
 
 
-def voted_options(user, voter_key, poll_ids):
-    """{poll_id: option_id} for the polls this person already voted on — a single query."""
+class PriorVote(NamedTuple):
+    option_id: int
+    is_mine: bool  # False: cast on this browser by a different member, so it must stay hidden from the viewer
+
+
+def prior_votes(user, voter_key, poll_ids):
+    """{poll_id: PriorVote} for the polls this person already voted on — a single query.
+
+    A vote found through the browser cookie that a different signed-in member cast counts as "already voted"
+    (decision 2: one vote per browser), but it is not this viewer's choice and must not be shown as theirs.
+    Votes cast as a guest, or by the same member, are theirs. When both kinds exist for a poll, theirs wins.
+    """
     condition = identity_filter(user, voter_key)
     if condition is None or not poll_ids:
         return {}
-    rows = Vote.objects.filter(condition, poll_id__in=poll_ids).values_list("poll_id", "option_id")
-    return dict(rows)
+    rows = Vote.objects.filter(condition, poll_id__in=poll_ids).values_list("poll_id", "option_id", "user_id")
+    signed_in = user is not None and user.is_authenticated
+    found = {}
+    for poll_id, option_id, voter_user_id in rows:
+        is_mine = not (signed_in and voter_user_id is not None and voter_user_id != user.pk)
+        if poll_id not in found or (is_mine and not found[poll_id].is_mine):
+            found[poll_id] = PriorVote(option_id, is_mine)
+    return found
 
 
 def exclude_voted(queryset, request):
@@ -153,12 +170,15 @@ def annotate_for_viewer(request, polls):
     """Attach viewer-specific state to each poll. Results are only attached when allowed."""
     polls = list(polls)
     user = request.user
-    voted = voted_options(user, get_voter_key(request), [poll.pk for poll in polls])
+    prior = prior_votes(user, get_voter_key(request), [poll.pk for poll in polls])
     for poll in polls:
         poll.is_owner = user.is_authenticated and poll.author_id == user.pk
-        poll.voted_option_id = voted.get(poll.pk)
+        vote = prior.get(poll.pk)
+        has_voted = vote is not None
+        poll.voted_by_other = has_voted and not vote.is_mine
+        poll.voted_option_id = vote.option_id if has_voted and vote.is_mine else None
         # Everyone, the owner included, votes once. The owner just sees the results from the start.
-        poll.votable = poll.voted_option_id is None
-        poll.show_results = poll.is_owner or poll.voted_option_id is not None
+        poll.votable = not has_voted
+        poll.show_results = poll.is_owner or has_voted
         poll.results = build_results(poll.options.all(), poll.voted_option_id) if poll.show_results else None
     return polls

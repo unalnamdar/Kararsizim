@@ -1,7 +1,16 @@
 from django.contrib import admin
+from django.contrib.admin.forms import AdminAuthenticationForm
 from django.contrib.auth.admin import UserAdmin as BaseUserAdmin
 
+from .forms import LoginThrottleMixin
 from .models import User
+
+
+class ThrottledAdminLoginForm(LoginThrottleMixin, AdminAuthenticationForm):
+    """The admin sign-in page shares the site's limit on password guesses."""
+
+
+admin.site.login_form = ThrottledAdminLoginForm
 
 
 @admin.register(User)

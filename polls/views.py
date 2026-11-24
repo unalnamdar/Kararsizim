@@ -21,6 +21,7 @@ from .models import Poll, Report, Vote
 User = get_user_model()
 
 PAGE_SIZE = 20
+MAX_PAGE = 10_000  # a larger ?sayfa= is not a real page; it would also overflow the database integer
 FEED_SORTS = ("yeni", "populer")
 FILTER_UNVOTED = "oylamadiklarim"
 
@@ -40,6 +41,8 @@ def _page_number(request):
 def _paginate(request, queryset):
     """Offset pagination without a COUNT query: fetch one extra row to know if there is more."""
     page = _page_number(request)
+    if page > MAX_PAGE:
+        raise Http404("Bu sayfada anket yok.")
     offset = (page - 1) * PAGE_SIZE
     rows = list(queryset[offset:offset + PAGE_SIZE + 1])
     if page > 1 and not rows:
@@ -153,6 +156,7 @@ def delete(request, poll_id):
 MSG_NOT_FOUND = "Anket bulunamadı."
 MSG_INVALID_OPTION = "Geçersiz seçenek."
 MSG_ALREADY = "Bu ankete zaten oy vermiştin."
+MSG_ALREADY_BROWSER = "Bu tarayıcıdan bu ankete zaten oy verilmiş."  # another member's vote on this browser
 MSG_IP_LIMIT = "Bu ağdan bu ankete verilebilecek en fazla oy sayısına ulaşıldı."
 MSG_SUCCESS = "Oyun kaydedildi."
 
@@ -168,6 +172,8 @@ def _read_option_id(request, is_json):
         raw = request.POST.get("option_id")
     if isinstance(raw, bool):
         return None
+    if isinstance(raw, float) and not raw.is_integer():
+        return None  # 1.5 must not silently become option 1; also catches NaN and the infinity that 1e400 parses to
     try:
         return int(raw)
     except (TypeError, ValueError):
@@ -186,6 +192,8 @@ def vote(request, poll_id):
     def respond(status, message, results=None, voter_key_to_set=None, retry_after=None):
         if is_json:
             body = voting.results_payload(results) if results is not None else {"error": message}
+            if status == 409:
+                body["message"] = message  # the page shows it as is; the wording differs per case
             response = JsonResponse(body, status=status)
         else:
             level = messages.success if status == 200 else messages.info if status == 409 else messages.error
@@ -215,25 +223,40 @@ def vote(request, poll_id):
     if option_id is None or not poll.options.filter(pk=option_id).exists():
         return respond(400, MSG_INVALID_OPTION)
 
-    voter_key = voting.get_voter_key(request)
-    existing = voting.voted_options(user, voter_key, [poll.pk]).get(poll.pk)
-    if existing is not None:
-        return respond(409, MSG_ALREADY, _current_results(poll, existing))
+    def already_voted(prior):
+        # A different member's vote on this browser counts, but their choice is not shown as this viewer's.
+        return respond(
+            409,
+            MSG_ALREADY if prior.is_mine else MSG_ALREADY_BROWSER,
+            _current_results(poll, prior.option_id if prior.is_mine else None),
+        )
 
-    if ip_hash and Vote.objects.filter(poll=poll, ip_hash=ip_hash).count() >= voting.MAX_VOTES_PER_IP:
-        return respond(403, MSG_IP_LIMIT)
+    voter_key = voting.get_voter_key(request)
+    prior = voting.prior_votes(user, voter_key, [poll.pk]).get(poll.pk)
+    if prior is not None:
+        return already_voted(prior)
 
     new_key = voter_key is None
     if new_key:
         voter_key = voting.new_voter_key()
 
+    over_network_cap = False
     try:
         with transaction.atomic():
-            Vote.objects.create(poll=poll, option_id=option_id, user=user, voter_key=voter_key, ip_hash=ip_hash)
+            # Votes on one poll take turns here. Without the lock, parallel requests from one network all count
+            # the votes before any of them is saved and together blow through the cap (PostgreSQL; SQLite
+            # serialises writers by itself, see settings).
+            Poll.objects.select_for_update().filter(pk=poll.pk).first()
+            if ip_hash and Vote.objects.filter(poll=poll, ip_hash=ip_hash).count() >= voting.MAX_VOTES_PER_IP:
+                over_network_cap = True
+            else:
+                Vote.objects.create(poll=poll, option_id=option_id, user=user, voter_key=voter_key, ip_hash=ip_hash)
     except IntegrityError:
         # Lost a race with a parallel request from the same person.
-        existing = voting.voted_options(user, voter_key, [poll.pk]).get(poll.pk, option_id)
-        return respond(409, MSG_ALREADY, _current_results(poll, existing))
+        prior = voting.prior_votes(user, voter_key, [poll.pk]).get(poll.pk) or voting.PriorVote(option_id, True)
+        return already_voted(prior)
+    if over_network_cap:
+        return respond(403, MSG_IP_LIMIT)
 
     ratelimit.record("vote", ip_hash)
     return respond(

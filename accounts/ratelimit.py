@@ -23,6 +23,7 @@ LIMITS = {
     "report": (10, 3600),  # reports per hour from one IP
     "password_reset": (5, 3600),        # reset requests per hour from one IP, for any address
     "password_reset_email": (3, 3600),  # reset emails per hour to one address (stops mail bombing)
+    "login": (10, 900),    # failed password checks per 15 minutes from one IP, whichever address is tried
 }
 
 CLEANUP_AFTER = timedelta(days=1)
@@ -98,6 +99,26 @@ def check(scope, key):
         return None
     # The oldest event is the first to leave the window.
     return max(1, math.ceil(window - (now - oldest[0]).total_seconds()))
+
+
+def reserve(scope, key):
+    """Count an attempt first, then check the total: returns (wait, event).
+
+    check() followed by record() lets a burst of parallel requests all pass the check before any of them is
+    counted. Here every request writes its own row first, so the last one to arrive always sees all the others
+    and at most `limit` attempts get through. A denied attempt removes its own row (so hammering does not
+    extend the lockout) and gets (seconds to wait, None); an allowed one gets (None, event) and may delete the
+    event again if the attempt turns out to be free (a successful login).
+    """
+    if not key:
+        return None, None
+    limit, window = LIMITS[scope]
+    event = RateLimitEvent.objects.create(scope=scope, key=key)
+    since = timezone.now() - timedelta(seconds=window)
+    if RateLimitEvent.objects.filter(scope=scope, key=key, created_at__gte=since).count() <= limit:
+        return None, event
+    event.delete()
+    return check(scope, key) or 1, None
 
 
 def record(scope, key):
