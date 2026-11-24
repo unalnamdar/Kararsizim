@@ -82,8 +82,9 @@ class ProfilePageTests(FeedControlsTestCase):
 
 class ProfileLinksTests(TestCase):
     def test_card_author_links_to_the_profile(self):
-        make_poll(make_user("ayse"), question="Soru")
-        for url in ["/", "/anket/1/"]:
+        poll = make_poll(make_user("ayse"), question="Soru")
+        # Not "/anket/1/": PostgreSQL does not roll sequences back between tests, so the poll's number varies.
+        for url in ["/", poll.get_absolute_url()]:
             html = self.client.get(url).content.decode()
             self.assertIn('class="poll-card__author" href="/u/ayse/">@ayse</a>', html)
 
