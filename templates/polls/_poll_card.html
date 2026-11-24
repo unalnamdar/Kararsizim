@@ -3,6 +3,9 @@
   <p class="poll-card__meta">
     <a class="poll-card__author" href="{% url 'polls:profile' poll.author.username %}">@{{ poll.author.username }}</a>
     · <time datetime="{{ poll.created_at|date:'c' }}">{{ poll.created_at|naturaltime }}</time>
+    {% if poll.closes_at %}
+      · {% if poll.closed %}<span class="poll-card__closed">Sona erdi</span>{% else %}{{ poll.closes_at|timeuntil }} kaldı{% endif %}
+    {% endif %}
   </p>
 
   {% if link_question %}
@@ -12,7 +15,7 @@
   {% endif %}
 
   {% if poll.show_results %}
-    {% include "polls/_results.html" with results=poll.results votable=poll.votable poll_id=poll.pk %}
+    {% include "polls/_results.html" with results=poll.results votable=poll.clickable poll_id=poll.pk %}
   {% else %}
     <form method="post" action="{% url 'polls:vote' poll.pk %}" class="vote-form" data-vote-form>
       {% csrf_token %}
@@ -29,6 +32,8 @@
   {% if poll.voted_by_other %}
     <p class="poll-card__note">Bu tarayıcıdan bu ankete zaten oy verilmiş.</p>
   {% endif %}
+  {# vote.js fills this after an in-page vote; it is empty and hidden when the vote can no longer be changed #}
+  <p class="poll-card__note" data-poll-note{% if not poll.can_change %} hidden{% endif %}>{% if poll.can_change %}Oyunu {{ poll.change_minutes }} dakika daha değiştirebilirsin.{% endif %}</p>
   <p class="poll-card__error" role="alert" data-poll-error hidden></p>
   {# Screen reader announcement after an in-page vote; vote.js fills it #}
   <p class="visually-hidden" role="status" aria-live="polite" data-poll-live></p>

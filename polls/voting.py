@@ -18,6 +18,9 @@ VOTER_COOKIE_MAX_AGE = 60 * 60 * 24 * 365
 # Soft per-network cap: classmates on one Wi-Fi can all vote, but a script cannot stuff the box.
 MAX_VOTES_PER_IP = 5
 
+# A vote can be changed for this long after it was first cast (and only while the poll is open).
+CHANGE_WINDOW = timedelta(minutes=10)
+
 # "Popüler" ranks polls by the votes they got in this window, so old favourites do not stay on top forever.
 POPULAR_WINDOW = timedelta(days=7)
 
@@ -66,6 +69,8 @@ def identity_filter(user, voter_key):
 class PriorVote(NamedTuple):
     option_id: int
     is_mine: bool  # False: cast on this browser by a different member, so it must stay hidden from the viewer
+    vote_id: int = 0
+    voted_at: object = None  # when the vote was first cast; a change does not move it
 
 
 def prior_votes(user, voter_key, poll_ids):
@@ -78,14 +83,32 @@ def prior_votes(user, voter_key, poll_ids):
     condition = identity_filter(user, voter_key)
     if condition is None or not poll_ids:
         return {}
-    rows = Vote.objects.filter(condition, poll_id__in=poll_ids).values_list("poll_id", "option_id", "user_id")
+    rows = Vote.objects.filter(condition, poll_id__in=poll_ids).values_list(
+        "poll_id", "option_id", "user_id", "pk", "created_at"
+    )
     signed_in = user is not None and user.is_authenticated
     found = {}
-    for poll_id, option_id, voter_user_id in rows:
+    for poll_id, option_id, voter_user_id, vote_id, created_at in rows:
         is_mine = not (signed_in and voter_user_id is not None and voter_user_id != user.pk)
         if poll_id not in found or (is_mine and not found[poll_id].is_mine):
-            found[poll_id] = PriorVote(option_id, is_mine)
+            found[poll_id] = PriorVote(option_id, is_mine, vote_id, created_at)
     return found
+
+
+def change_seconds_left(poll, voted_at, now=None):
+    """Whole seconds this vote can still be changed; 0 when the window is over or the poll is closed."""
+    now = now or timezone.now()
+    if voted_at is None:
+        return 0
+    last_moment = voted_at + CHANGE_WINDOW
+    if poll.closes_at is not None:
+        last_moment = min(last_moment, poll.closes_at)  # a vote cannot be changed once the poll has ended
+    return max(0, int((last_moment - now).total_seconds()))
+
+
+def only_open(queryset):
+    """Polls that still take votes."""
+    return queryset.filter(Q(closes_at__isnull=True) | Q(closes_at__gt=timezone.now()))
 
 
 def exclude_voted(queryset, request):
@@ -135,13 +158,14 @@ def rounded_percents(counts):
     return floors
 
 
-def build_results(options, voted_option_id=None):
+def build_results(options, voted_option_id=None, change_seconds=0):
     """options must carry `vote_count` (see options_with_counts)."""
     options = list(options)
     counts = [option.vote_count for option in options]
     percents = rounded_percents(counts)
     return {
         "total": sum(counts),
+        "change_seconds": change_seconds,
         "options": [
             {
                 "id": option.pk,
@@ -163,6 +187,8 @@ def results_payload(results):
         "total": results["total"],
         "options": [{"id": o["id"], "votes": o["votes"], "percent": o["percent"]} for o in results["options"]],
         "voted_option_id": results["voted_option_id"],
+        "can_change": results["change_seconds"] > 0,
+        "change_seconds": results["change_seconds"],
     }
 
 
@@ -171,14 +197,23 @@ def annotate_for_viewer(request, polls):
     polls = list(polls)
     user = request.user
     prior = prior_votes(user, get_voter_key(request), [poll.pk for poll in polls])
+    now = timezone.now()
     for poll in polls:
         poll.is_owner = user.is_authenticated and poll.author_id == user.pk
         vote = prior.get(poll.pk)
         has_voted = vote is not None
+        poll.closed = poll.closes_at is not None and now >= poll.closes_at
         poll.voted_by_other = has_voted and not vote.is_mine
         poll.voted_option_id = vote.option_id if has_voted and vote.is_mine else None
-        # Everyone, the owner included, votes once. The owner just sees the results from the start.
-        poll.votable = not has_voted
-        poll.show_results = poll.is_owner or has_voted
-        poll.results = build_results(poll.options.all(), poll.voted_option_id) if poll.show_results else None
+        # Everyone, the owner included, votes once (and may change that vote for a few minutes). The owner just
+        # sees the results from the start; once a poll has ended the results are open to everybody.
+        poll.votable = not has_voted and not poll.closed
+        poll.change_seconds = change_seconds_left(poll, vote.voted_at, now) if has_voted and vote.is_mine else 0
+        poll.can_change = poll.change_seconds > 0
+        poll.change_minutes = -(-poll.change_seconds // 60)
+        poll.clickable = poll.votable or poll.can_change  # the result bars are buttons
+        poll.show_results = poll.is_owner or has_voted or poll.closed
+        poll.results = (
+            build_results(poll.options.all(), poll.voted_option_id, poll.change_seconds) if poll.show_results else None
+        )
     return polls

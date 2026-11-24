@@ -1,12 +1,25 @@
+from datetime import timedelta
+
 from django.conf import settings
 from django.core.validators import MaxValueValidator, MinValueValidator
 from django.db import models
 from django.urls import reverse
+from django.utils import timezone
 
 QUESTION_MAX_LENGTH = 200
 OPTION_MAX_LENGTH = 80
 MIN_OPTIONS = 2
 MAX_OPTIONS = 5
+
+# How long a poll stays open, chosen by its author when creating it (value -> (label, length; None = no end)).
+DURATIONS = {
+    "none": ("Süresiz", None),
+    "1h": ("1 saat", timedelta(hours=1)),
+    "1d": ("1 gün", timedelta(days=1)),
+    "3d": ("3 gün", timedelta(days=3)),
+    "7d": ("7 gün", timedelta(days=7)),
+}
+DURATION_CHOICES = [(value, label) for value, (label, _) in DURATIONS.items()]
 
 
 class Poll(models.Model):
@@ -18,6 +31,8 @@ class Poll(models.Model):
     )
     question = models.CharField("soru", max_length=QUESTION_MAX_LENGTH)
     created_at = models.DateTimeField("oluşturulma", auto_now_add=True, db_index=True)
+    # NULL = no end (every poll made before this field existed, and "Süresiz"). Never changes after creation.
+    closes_at = models.DateTimeField("bitiş", null=True, blank=True)
 
     class Meta:
         ordering = ["-created_at", "-id"]
@@ -26,6 +41,10 @@ class Poll(models.Model):
 
     def __str__(self):
         return self.question
+
+    @property
+    def is_open(self):
+        return self.closes_at is None or timezone.now() < self.closes_at
 
     def get_absolute_url(self):
         return reverse("polls:detail", args=[self.pk])

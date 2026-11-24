@@ -2,11 +2,13 @@
 
 import json
 import threading
+from datetime import timedelta
 from unittest import mock
 
 from django.db import connection, connections
 from django.db.models.query import QuerySet
 from django.test import TestCase, TransactionTestCase, skipUnlessDBFeature
+from django.utils import timezone
 
 from . import views, voting
 from .models import Poll, Vote
@@ -152,6 +154,9 @@ class SharedBrowserTests(TestCase):
             self.url, data=json.dumps({"option_id": option.pk}), content_type="application/json"
         )
 
+    def end_change_window(self):
+        Vote.objects.update(created_at=timezone.now() - timedelta(minutes=11))
+
     def ayse_votes_then_deniz_signs_in(self):
         self.client.force_login(self.ayse)
         self.assertEqual(self.vote_json(self.coffee).status_code, 200)
@@ -203,6 +208,7 @@ class SharedBrowserTests(TestCase):
         """Logged out again, it is most likely the same person: unchanged from the original decision (karar 2)."""
         self.client.force_login(self.ayse)
         self.vote_json(self.coffee)
+        self.end_change_window()
         self.client.post("/cikis/")
         response = self.vote_json(self.tea)
         self.assertEqual(response.status_code, 409)
@@ -211,15 +217,17 @@ class SharedBrowserTests(TestCase):
 
     def test_a_guest_vote_followed_by_signing_in_is_still_theirs(self):
         self.vote_json(self.tea)
+        self.end_change_window()
         self.client.post("/giris/", {"username": self.deniz.email, "password": PASSWORD})
         response = self.vote_json(self.coffee)
         self.assertEqual(response.status_code, 409)
         self.assertEqual(response.json()["voted_option_id"], self.tea.pk)
         self.assertIn("senin seçimin", self.client.get(self.poll.get_absolute_url()).content.decode())
 
-    def test_an_ordinary_double_vote_keeps_the_original_message(self):
+    def test_a_locked_vote_gets_its_own_message(self):
         self.client.force_login(self.ayse)
         self.vote_json(self.coffee)
+        self.end_change_window()
         body = self.vote_json(self.tea).json()
-        self.assertEqual(body["message"], "Bu ankete zaten oy vermiştin.")
+        self.assertEqual(body["message"], "Oyunu değiştirme süren doldu.")
         self.assertEqual(body["voted_option_id"], self.coffee.pk)

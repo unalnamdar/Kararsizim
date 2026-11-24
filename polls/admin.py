@@ -23,7 +23,7 @@ class ReportInline(admin.TabularInline):
 
 @admin.register(Poll)
 class PollAdmin(admin.ModelAdmin):
-    list_display = ("question", "author", "created_at", "report_count")
+    list_display = ("question", "author", "created_at", "closes_at", "report_count")
     list_select_related = ("author",)
     search_fields = ("question", "author__username")
     date_hierarchy = "created_at"

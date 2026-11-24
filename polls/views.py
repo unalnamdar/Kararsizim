@@ -8,6 +8,7 @@ from django.db import IntegrityError, transaction
 from django.http import Http404, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
+from django.utils import timezone
 from django.utils.http import urlencode
 from django.utils.text import Truncator
 from django.views.decorators.http import require_http_methods, require_POST
@@ -76,7 +77,8 @@ def feed(request):
 
     queryset = _poll_queryset()
     if only_unvoted:
-        queryset = voting.exclude_voted(queryset, request)
+        # Ended polls take no votes any more, so they are not "not voted yet" either.
+        queryset = voting.only_open(voting.exclude_voted(queryset, request))
     if sort == "populer":
         queryset = voting.order_by_popularity(queryset)
 
@@ -157,6 +159,9 @@ MSG_NOT_FOUND = "Anket bulunamadı."
 MSG_INVALID_OPTION = "Geçersiz seçenek."
 MSG_ALREADY = "Bu ankete zaten oy vermiştin."
 MSG_ALREADY_BROWSER = "Bu tarayıcıdan bu ankete zaten oy verilmiş."  # another member's vote on this browser
+MSG_CLOSED = "Bu anketin süresi doldu."
+MSG_LOCKED = "Oyunu değiştirme süren doldu."
+MSG_CHANGED = "Oyun değişti."
 MSG_IP_LIMIT = "Bu ağdan bu ankete verilebilecek en fazla oy sayısına ulaşıldı."
 MSG_SUCCESS = "Oyun kaydedildi."
 
@@ -180,8 +185,8 @@ def _read_option_id(request, is_json):
         return None
 
 
-def _current_results(poll, voted_option_id):
-    return voting.build_results(voting.options_with_counts().filter(poll=poll), voted_option_id)
+def _current_results(poll, voted_option_id, change_seconds=0):
+    return voting.build_results(voting.options_with_counts().filter(poll=poll), voted_option_id, change_seconds)
 
 
 @require_POST
@@ -189,11 +194,13 @@ def vote(request, poll_id):
     """JSON endpoint (`{"option_id": n}`) with a plain form POST fallback for no-JS browsers."""
     is_json = request.content_type == "application/json" or "application/json" in request.headers.get("Accept", "")
 
-    def respond(status, message, results=None, voter_key_to_set=None, retry_after=None):
+    def respond(status, message, results=None, voter_key_to_set=None, retry_after=None, changed=False):
         if is_json:
             body = voting.results_payload(results) if results is not None else {"error": message}
             if status == 409:
                 body["message"] = message  # the page shows it as is; the wording differs per case
+            if changed:
+                body["changed"] = True
             response = JsonResponse(body, status=status)
         else:
             level = messages.success if status == 200 else messages.info if status == 409 else messages.error
@@ -213,6 +220,12 @@ def vote(request, poll_id):
 
     user = request.user if request.user.is_authenticated else None
 
+    if not poll.is_open:
+        # The poll has ended: no new votes and no changes. Its results are open to everybody by now.
+        ended_prior = voting.prior_votes(user, voting.get_voter_key(request), [poll.pk]).get(poll.pk)
+        mine = ended_prior.option_id if ended_prior is not None and ended_prior.is_mine else None
+        return respond(409, MSG_CLOSED, _current_results(poll, mine))
+
     # None when no trusted header carries the IP (local dev, tests): the IP-based checks then do not apply.
     ip_hash = ratelimit.request_digest(request)
     wait = ratelimit.check("vote", ip_hash)
@@ -225,22 +238,42 @@ def vote(request, poll_id):
 
     def already_voted(prior):
         # A different member's vote on this browser counts, but their choice is not shown as this viewer's.
+        # Your own vote can no longer be changed once its window is over.
         return respond(
             409,
-            MSG_ALREADY if prior.is_mine else MSG_ALREADY_BROWSER,
+            MSG_LOCKED if prior.is_mine else MSG_ALREADY_BROWSER,
             _current_results(poll, prior.option_id if prior.is_mine else None),
         )
+
+    def change_vote(prior):
+        """Move this person's vote to another option, within CHANGE_WINDOW of the first vote."""
+        seconds = voting.change_seconds_left(poll, prior.voted_at)
+        if seconds <= 0:
+            return already_voted(prior)
+        if prior.option_id == option_id:
+            return respond(200, MSG_SUCCESS, _current_results(poll, option_id, seconds))
+        with transaction.atomic():
+            Poll.objects.select_for_update().filter(pk=poll.pk).first()  # same lock the first vote takes
+            # The window is checked again in the UPDATE itself, so it cannot be beaten by a slow request.
+            moved = Vote.objects.filter(
+                pk=prior.vote_id, created_at__gt=timezone.now() - voting.CHANGE_WINDOW
+            ).update(option_id=option_id)
+        if not moved:
+            return already_voted(prior)
+        ratelimit.record("vote", ip_hash)
+        return respond(200, MSG_CHANGED, _current_results(poll, option_id, seconds), changed=True)
 
     voter_key = voting.get_voter_key(request)
     prior = voting.prior_votes(user, voter_key, [poll.pk]).get(poll.pk)
     if prior is not None:
-        return already_voted(prior)
+        return change_vote(prior) if prior.is_mine else already_voted(prior)
 
     new_key = voter_key is None
     if new_key:
         voter_key = voting.new_voter_key()
 
     over_network_cap = False
+    new_vote = None
     try:
         with transaction.atomic():
             # Votes on one poll take turns here. Without the lock, parallel requests from one network all count
@@ -250,11 +283,14 @@ def vote(request, poll_id):
             if ip_hash and Vote.objects.filter(poll=poll, ip_hash=ip_hash).count() >= voting.MAX_VOTES_PER_IP:
                 over_network_cap = True
             else:
-                Vote.objects.create(poll=poll, option_id=option_id, user=user, voter_key=voter_key, ip_hash=ip_hash)
+                new_vote = Vote.objects.create(
+                    poll=poll, option_id=option_id, user=user, voter_key=voter_key, ip_hash=ip_hash
+                )
     except IntegrityError:
-        # Lost a race with a parallel request from the same person.
+        # Lost a race with a parallel request from the same person: the other request's vote is their first
+        # vote, and this one acts as a change of it (a double click on the same option changes nothing).
         prior = voting.prior_votes(user, voter_key, [poll.pk]).get(poll.pk) or voting.PriorVote(option_id, True)
-        return already_voted(prior)
+        return change_vote(prior) if prior.is_mine else already_voted(prior)
     if over_network_cap:
         return respond(403, MSG_IP_LIMIT)
 
@@ -262,7 +298,7 @@ def vote(request, poll_id):
     return respond(
         200,
         MSG_SUCCESS,
-        _current_results(poll, option_id),
+        _current_results(poll, option_id, voting.change_seconds_left(poll, new_vote.created_at)),
         voter_key_to_set=voter_key if new_key else None,
     )
 

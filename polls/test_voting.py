@@ -1,6 +1,8 @@
 import json
+from datetime import timedelta
 
 from django.test import TestCase
+from django.utils import timezone
 
 from .models import Vote
 from .tests import PASSWORD, make_poll, make_user
@@ -22,13 +24,20 @@ class VoteTestCase(TestCase):
         client = client or self.client
         return client.post(self.url, data=json.dumps({"option_id": option_id}), content_type="application/json")
 
+    def end_change_window(self):
+        """Pretend the 10 minutes in which a vote can be changed are over."""
+        Vote.objects.update(created_at=timezone.now() - timedelta(minutes=11))
+
 
 class VoteEndpointTests(VoteTestCase):
     def test_anonymous_vote(self):
         response = self.vote_json(self.tea.pk)
         self.assertEqual(response.status_code, 200)
+        body = response.json()
+        seconds = body.pop("change_seconds")
+        self.assertTrue(595 <= seconds <= 600, seconds)  # the 10 minute window has just started
         self.assertEqual(
-            response.json(),
+            body,
             {
                 "total": 1,
                 "options": [
@@ -37,6 +46,7 @@ class VoteEndpointTests(VoteTestCase):
                     {"id": self.both.pk, "votes": 0, "percent": 0},
                 ],
                 "voted_option_id": self.tea.pk,
+                "can_change": True,
             },
         )
         vote = Vote.objects.get()
@@ -49,10 +59,13 @@ class VoteEndpointTests(VoteTestCase):
         self.assertEqual(int(cookie["max-age"]), 60 * 60 * 24 * 365)
         self.assertNotEqual(cookie.value, vote.voter_key)  # signed, not the raw key
 
-    def test_anonymous_double_vote_409(self):
+    def test_anonymous_second_vote_after_the_change_window_is_409(self):
         self.vote_json(self.tea.pk)
+        self.end_change_window()
         response = self.vote_json(self.coffee.pk)
         self.assertEqual(response.status_code, 409)
+        self.assertEqual(response.json()["message"], "Oyunu değiştirme süren doldu.")
+        self.assertFalse(response.json()["can_change"])
         self.assertEqual(response.json()["voted_option_id"], self.tea.pk)
         self.assertEqual(response.json()["total"], 1)
         self.assertEqual(Vote.objects.count(), 1)
@@ -70,6 +83,7 @@ class VoteEndpointTests(VoteTestCase):
         member = make_user("uye")
         self.client.force_login(member)
         self.vote_json(self.coffee.pk)
+        self.end_change_window()
 
         other_browser = self.client_class()
         other_browser.force_login(member)
@@ -80,6 +94,7 @@ class VoteEndpointTests(VoteTestCase):
 
     def test_guest_vote_then_login_counts_as_voted(self):
         self.vote_json(self.tea.pk)
+        self.end_change_window()
         member = make_user("uye")
         self.client.post("/giris/", {"username": member.email, "password": PASSWORD})
         response = self.vote_json(self.coffee.pk)
@@ -90,6 +105,7 @@ class VoteEndpointTests(VoteTestCase):
         member = make_user("uye")
         self.client.force_login(member)
         self.vote_json(self.tea.pk)
+        self.end_change_window()
         self.client.post("/cikis/")
         self.assertEqual(self.vote_json(self.coffee.pk).status_code, 409)
 
@@ -105,6 +121,7 @@ class VoteEndpointTests(VoteTestCase):
     def test_owner_votes_only_once(self):
         self.client.force_login(self.owner)
         self.vote_json(self.tea.pk)
+        self.end_change_window()
         response = self.vote_json(self.coffee.pk)
         self.assertEqual(response.status_code, 409)
         self.assertEqual(response.json()["voted_option_id"], self.tea.pk)
@@ -113,6 +130,7 @@ class VoteEndpointTests(VoteTestCase):
     def test_owner_cannot_vote_again_as_guest_in_same_browser(self):
         self.client.force_login(self.owner)
         self.vote_json(self.tea.pk)
+        self.end_change_window()
         self.client.post("/cikis/")
         self.assertEqual(self.vote_json(self.coffee.pk).status_code, 409)
         self.assertEqual(Vote.objects.count(), 1)
@@ -193,8 +211,9 @@ class NoJsFallbackTests(VoteTestCase):
 
     def test_form_post_double_vote(self):
         self.client.post(self.url, {"option_id": self.tea.pk})
+        self.end_change_window()
         response = self.client.post(self.url, {"option_id": self.coffee.pk}, follow=True)
-        self.assertContains(response, "Bu ankete zaten oy vermiştin.")
+        self.assertContains(response, "Oyunu değiştirme süren doldu.")
         self.assertEqual(Vote.objects.count(), 1)
 
     def test_form_post_invalid_option(self):
@@ -241,6 +260,7 @@ class ResultVisibilityTests(VoteTestCase):
 
     def test_results_visible_after_voting_and_persist(self):
         self.vote_json(self.tea.pk)
+        self.end_change_window()  # while the vote can still be changed the bars are buttons (see test_vote_change)
         for url in ["/", f"/anket/{self.poll.pk}/"]:
             with self.subTest(url=url):
                 response = self.client.get(url)
@@ -265,6 +285,7 @@ class ResultVisibilityTests(VoteTestCase):
     def test_owner_after_voting_sees_selection_and_no_buttons(self):
         self.client.force_login(self.owner)
         self.vote_json(self.tea.pk)
+        self.end_change_window()
         for url in ["/", f"/anket/{self.poll.pk}/"]:
             with self.subTest(url=url):
                 response = self.client.get(url)

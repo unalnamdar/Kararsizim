@@ -79,7 +79,8 @@ class PerNetworkCapTests(IpVoteTestCase):
         self.vote_from(IP_A, client=first)
         for _ in range(MAX_VOTES_PER_IP - 1):
             self.vote_from(IP_A)
-        # the network is full, but the first browser asking again is told it already voted
+        # the network is full, but the first browser asking again is told its vote is final
+        Vote.objects.update(created_at=timezone.now() - timedelta(minutes=11))
         response = self.vote_from(IP_A, option=self.coffee, client=first)
         self.assertEqual(response.status_code, 409)
 

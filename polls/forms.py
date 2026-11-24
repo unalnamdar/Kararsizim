@@ -1,7 +1,18 @@
 from django import forms
 from django.db import transaction
+from django.utils import timezone
 
-from .models import MAX_OPTIONS, MIN_OPTIONS, OPTION_MAX_LENGTH, QUESTION_MAX_LENGTH, Option, Poll, Report
+from .models import (
+    DURATION_CHOICES,
+    DURATIONS,
+    MAX_OPTIONS,
+    MIN_OPTIONS,
+    OPTION_MAX_LENGTH,
+    QUESTION_MAX_LENGTH,
+    Option,
+    Poll,
+    Report,
+)
 
 
 def _collapse_spaces(value):
@@ -23,6 +34,15 @@ class PollForm(forms.Form):
             "required": "Bir soru yazmalısın.",
             "max_length": f"Soru en fazla {QUESTION_MAX_LENGTH} karakter olabilir.",
         },
+    )
+
+    duration = forms.ChoiceField(
+        label="Anket ne kadar açık kalsın?",
+        choices=DURATION_CHOICES,
+        initial="none",
+        required=False,  # a missing value (old forms, scripts) means "Süresiz"
+        error_messages={"invalid_choice": "Geçersiz bir süre seçtin."},
+        help_text="Süre dolunca oy verilemez; sonuçlar herkese açılır.",
     )
 
     def __init__(self, data=None, *args, **kwargs):
@@ -48,6 +68,9 @@ class PollForm(forms.Form):
         if not question:
             raise forms.ValidationError("Bir soru yazmalısın.", code="required")
         return question
+
+    def clean_duration(self):
+        return self.cleaned_data.get("duration") or "none"
 
     def clean(self):
         cleaned = super().clean()
@@ -78,7 +101,12 @@ class PollForm(forms.Form):
 
     @transaction.atomic
     def save(self, author):
-        poll = Poll.objects.create(author=author, question=self.cleaned_data["question"])
+        length = DURATIONS[self.cleaned_data["duration"]][1]
+        poll = Poll.objects.create(
+            author=author,
+            question=self.cleaned_data["question"],
+            closes_at=timezone.now() + length if length else None,
+        )
         Option.objects.bulk_create(
             Option(poll=poll, text=text, position=index) for index, text in enumerate(self.cleaned_options)
         )

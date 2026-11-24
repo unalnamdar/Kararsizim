@@ -47,6 +47,8 @@
         <button type="button" class="button button--secondary button--small" data-add-option hidden>+ Seçenek ekle</button>
       </fieldset>
 
+      {% include "includes/form_field.html" with field=form.duration %}
+
       <button type="submit" class="button button--block">Yayınla</button>
     </form>
   </section>

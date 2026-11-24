@@ -1,18 +1,19 @@
 {% comment %}
   Keep this markup in sync with renderResults() in static/js/vote.js.
-  `votable` (the owner before their own vote): every bar is a submit button; otherwise it is plain text.
+  `votable` means the bars are submit buttons: the owner before their own vote, and anyone who may still change
+  their vote (the first minutes after voting). Otherwise the bars are plain text.
 {% endcomment %}
 {% if votable %}
 <form method="post" action="{% url 'polls:vote' poll_id %}" class="vote-form" data-vote-form>
   {% csrf_token %}
 {% endif %}
-<ol class="options options--results" aria-label="{% if votable %}Sonuçlar — birini seçerek sen de oy verebilirsin{% else %}Sonuçlar{% endif %}">
+<ol class="options options--results" aria-label="{% if votable %}{% if results.voted_option_id %}Sonuçlar — oyunu değiştirmek için başka bir seçeneğe dokunabilirsin{% else %}Sonuçlar — birini seçerek sen de oy verebilirsin{% endif %}{% else %}Sonuçlar{% endif %}">
   {% for item in results.options %}
     <li class="option option--{{ item.position }} option--result{% if item.selected %} is-selected{% endif %}">
       <span class="option__fill" style="width: {{ item.percent }}%" aria-hidden="true"></span>
       {% if votable %}
-        <button type="submit" name="option_id" value="{{ item.id }}" class="option__button option__button--result" aria-label="{{ item.text }}, %{{ item.percent }}, {{ item.votes }} oy">
-          <span class="option__label">{{ item.text }}</span>
+        <button type="submit" name="option_id" value="{{ item.id }}" class="option__button option__button--result" aria-label="{{ item.text }}, %{{ item.percent }}, {{ item.votes }} oy{% if item.selected %} (senin seçimin){% endif %}">
+          <span class="option__label">{{ item.text }}{% if item.selected %} <span class="option__check" aria-hidden="true">✓</span>{% endif %}</span>
           <span class="option__value"><strong>%{{ item.percent }}</strong> · {{ item.votes }} oy</span>
         </button>
       {% else %}

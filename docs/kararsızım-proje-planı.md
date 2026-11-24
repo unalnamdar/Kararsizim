@@ -18,9 +18,9 @@ Kullanım: kullanıcı "Faz 1'i uygula" gibi bir komut verir.
 - **Üye olmayanlar** anketleri görebilir ve oy verebilir.
 - **Anket oluşturmak** için üyelik şarttır.
 - Kayıtta **e-posta, parola, kullanıcı adı** alınır. Anketlerde yalnızca **kullanıcı adı** görünür; e-posta hiçbir sayfada, HTML'de veya JSON yanıtında yer almaz.
-- Bir anket en az **2**, en fazla **5** seçenek içerir.
-- Bir kişi bir ankete **tek oy** verir; oy değiştirilemez (prototip).
-- Sonuçlar (yüzde + oy sayısı) kişiye **oy verdikten sonra** gösterilir. Anket sahibi sonuçları her zaman görür ve kendi anketine de (herkes gibi tek) oy verebilir (karar 7).
+- Bir anket en az **2**, en fazla **5** seçenek içerir. Sahibi oluştururken bir **bitiş süresi** seçebilir (süresiz, 1 saat, 1 gün, 3 gün, 7 gün); süre dolunca oy kapanır (karar 12).
+- Bir kişi bir ankete **tek oy** verir; oyunu ilk oydan sonraki **10 dakika** içinde değiştirebilir, sonra oy kesinleşir (karar 12).
+- Sonuçlar (yüzde + oy sayısı) kişiye **oy verdikten sonra** gösterilir; süresi dolmuş anketin sonuçları herkese açıktır (karar 12). Anket sahibi sonuçları her zaman görür ve kendi anketine de (herkes gibi tek) oy verebilir (karar 7).
 - Anket sahibi anketini **silebilir**, düzenleyemez (oy geldikten sonra soruyu değiştirmek adil olmaz).
 
 ### Netleştirilen kararlar (2026-11-17)
@@ -36,10 +36,11 @@ Kullanım: kullanıcı "Faz 1'i uygula" gibi bir komut verir.
 9. **Popüler sıralama ve filtre (Faz 6).** "Popüler" = son 7 günde en çok oy alan anket; eşitlikte (ve sıfırda) yeni olan önce. Sıralama, oy vermemiş kişiye anketlerin birbirine göre popülerliğini ima eder ama toplam oy sayısını ya da seçenek sonuçlarını göstermez. "Oylamadıklarım" = üye hesabıyla ya da tarayıcı çereziyle oy verilmemiş anketler (sahibin henüz oy vermediği kendi anketleri dahil). Adres parametreleri: `?sirala=populer`, `?filtre=oylamadiklarim`; "Daha fazla" ikisini de korur. **Profil sayfası:** `/u/<kullaniciadi>/` herkese açık (yalnızca etkin üyeler), üyenin anketleri ve üyelik ayı görünür, e-posta asla; kartlardaki `@kullaniciadi` oraya bağlanır, üye menüsünde "Profilim" vardır.
 10. **Parola sıfırlama (Faz 6, 2026-11-23).** Django'nun kendi token mekanizmasıyla, Türkçe sayfalar ve e-postayla: `/parola-sifirla/`. Bağlantı **1 saat** geçerli ve tek kullanımlık (parola değişince çalışmaz); sıfırlamadan sonra **otomatik giriş yok** ve diğer cihazların oturumları kapanır. Hesap varlığı sızdırılmaz: bilinen ya da bilinmeyen her adres aynı "e-postanı kontrol et" sayfasını görür. Hız sınırı (veritabanıyla, karar 8'deki mekanizma): IP başına saatte 5 istek (bilinmeyen adresler dahil), e-posta başına saatte 3 gönderim (aşılırsa aynı sayfa görünür ama e-posta gitmez; kutuyu sel basmasın diye). **E-posta sağlayıcısı kullanıcıya bağlıdır:** herhangi bir SMTP, ortam değişkenleriyle (`EMAIL_HOST`, `EMAIL_PORT`, `EMAIL_HOST_USER`, `EMAIL_HOST_PASSWORD`, `DEFAULT_FROM_EMAIL`). `EMAIL_HOST` yoksa özellik üretimde kapalıdır (sayfalar `404`, giriş sayfasında bağlantı yok); yerelde e-postalar terminale yazılır. Bilinen sınır: yanıt süresindeki küçük fark hesap varlığını zamanlamayla sezdirebilir.
 11. **Güvenlik incelemesi düzeltmeleri (2026-11-24, kullanıcı onayladı).** (a) **Giriş denemelerine hız sınırı:** IP başına 15 dakikada en fazla **10 başarısız** parola denemesi, hangi e-postanın denendiğine bakılmaksızın; site girişi ve `/admin/login/` aynı sınırı paylaşır. Aşınca `429` + `Retry-After`, ve kilit sürerken **doğru parola da kabul edilmez** (yoksa sınır yalnızca yavaşlatır). Başarılı giriş sayılmaz; biçimi bozuk e-posta bir tahmin sayılmaz. Sayaç önce yazılır, sonra toplam okunur (`ratelimit.reserve`): paralel istekler sınırı delemez. (b) **Ağ başına 5 oy sınırı yarışsız:** kontrol ve kayıt, anketin satır kilidi (`select_for_update`) altında tek transaction'da yapılır; yerelde SQLite `transaction_mode=IMMEDIATE` ile aynı sırayı sağlar. Bilinen sınır: oy/dakika, kayıt, bildirim ve parola sıfırlama sınırları hâlâ "önce say, sonra kaydet" biçiminde; paralel isteklerle sınırı birkaç istek aşabilir, etkisi sınırlı. (c) **Ortak tarayıcı:** aynı tarayıcıda başka bir üyenin oyu karar 2'deki gibi "zaten oy verildi" sayılır (`409`), ama seçim artık ✓ ile **gösterilmez**; kartta "Bu tarayıcıdan bu ankete zaten oy verilmiş." yazar. Misafir ya da aynı üyenin oyu kendisine yine ✓ ile görünür. (d) `?sayfa=` en çok **10.000**; üstü `404` (veritabanı tamsayı taşması `500` veriyordu). (e) Oy ucunda `option_id` tam sayı olmalı: `1.5`, `NaN`, `1e400` artık `400` (`1.5` sessizce seçenek 1 oluyordu).
+12. **Anket bitiş süresi ve oy değiştirme (Faz 6, 2026-11-24, kullanıcı kararı).** (a) **Süre:** anket oluştururken hazır bir seçenek: Süresiz (varsayılan), 1 saat, 1 gün, 3 gün, 7 gün. `Poll.closes_at` (boş = süresiz; var olan anketler süresiz kalır), sonradan değişmez; uzatma ya da erken kapatma yok. (b) **Süre dolunca:** oy ve oy değişikliği kapanır (`409`); **sonuçlar herkese açılır** (oy vermemişler de görür, "oy verince göster" kuralı artık uygulanmaz); anket akışta ve popüler sırada kalır, kartta "Sona erdi" yazar; açık ankette "… kaldı" gösterilir. "Oylamadıklarım" süresi dolanları saymaz. Sahip de süresi dolmuş ankete oy veremez. (c) **Oy değiştirme:** ilk oydan sonra **10 dakika** boyunca, anket açıkken, sınırsız sayıda; süre ilk oydan sayılır, değişiklik süreyi uzatmaz. Satır güncellenir (oy sayısı, ağ başına 5 oy sınırı ve benzersizlik kısıtları etkilenmez); değişiklik oy hız sınırına sayılır. Anket 10 dakikadan önce bitiyorsa pencere o ana kısalır. Misafir (aynı tarayıcı) ve üye (başka tarayıcıdan da) değiştirebilir; aynı tarayıcıdaki **başka bir üyenin** oyu değiştirilemez (karar 11c). (d) **Arayüz:** pencere açıkken sonuç çubukları doğrudan tıklanabilir (seçim ✓ ile işaretli) ve "Oyunu N dakika daha değiştirebilirsin." yazar; pencere dolunca çubuklar düz metin olur. Sayfa yenilenmeden kalan süre güncellenmez; dolmuş pencerede basılırsa `409` ve mesaj gösterilir. (e) Veri: `polls` migration 0004 (nullable sütun, yeni tablo yok; RLS adımı gerekmez).
 
 ### Kapsam dışı (prototipte yapma)
 
-Takip, yorum, beğeni, mesajlaşma, bildirim, görsel yükleme, e-posta doğrulama, sosyal giriş, arama, kategori/etiket, anket süresi, admin dışı moderasyon araçları.
+Takip, yorum, beğeni, mesajlaşma, bildirim, görsel yükleme, e-posta doğrulama, sosyal giriş, arama, kategori/etiket, anket bitiş süresini sonradan değiştirme ya da erken kapatma, admin dışı moderasyon araçları.
 
 ---
 
@@ -103,6 +104,7 @@ kararsizim/
 - `author` → User (CASCADE)
 - `question`: CharField, max 200
 - `created_at`: otomatik, indeksli
+- `closes_at`: DateTimeField, **nullable** (boş = süresiz). Oluştururken `created_at + seçilen süre`; sonradan değişmez (karar 12)
 
 ### polls.Option
 
@@ -147,7 +149,10 @@ kararsizim/
 ### Oy ucu sözleşmesi
 
 - Başarılı → `200` `{"total": 42, "options": [{"id": 1, "votes": 30, "percent": 71}, ...], "voted_option_id": 1}`
-- Zaten oy verilmiş → `409`, aynı sonuç gövdesiyle
+- Oy değiştirme (ilk oydan sonra 10 dakika, anket açıkken, aynı kişi): aynı uç, aynı gövde, `200` ve `"changed": true`; oy yeni seçeneğe taşınır (yeni satır eklenmez, `created_at` değişmez). Aynı seçeneği tekrar göndermek `200`, değişiklik yok.
+- Gövdeye her zaman `can_change` (bool) ve `change_seconds` (kalan saniye) eklenir.
+- Oy kesinleşmiş (pencere dolmuş) → `409`, aynı sonuç gövdesiyle ve `message: "Oyunu değiştirme süren doldu."`. Başka bir üyenin aynı tarayıcıdaki oyu → `409`, seçim gösterilmez (karar 11c).
+- Anketin süresi dolmuş → `409`, `message: "Bu anketin süresi doldu."`, sonuçlarla; oy da değişiklik de olmaz.
 - Geçersiz seçenek → `400`, `{"error": "..."}` (Türkçe mesaj). Anket yoksa `404`. (Sahip oyu artık reddedilmez; karar 7.)
 - CSRF koruması açık kalır; `vote.js` token'ı `X-CSRFToken` başlığıyla gönderir.
 - Yarış durumunda `IntegrityError` yakalanıp `409` döndürülür.
@@ -244,7 +249,7 @@ if DATABASES["default"]["ENGINE"].endswith("postgresql"):
 **Yap:** `Vote` modeli + kısıtlar; anonim `voter_id` çerezi; oy ucu (bölüm 5 sözleşmesi); `vote.js`; sonuç gösterimi kuralları; JS'siz yedek akış.
 
 **Kabul kriterleri:**
-- Misafir ve üye oy verebilir; aynı kişi ikinci kez veremez (`409`).
+- Misafir ve üye oy verebilir; aynı kişi ikinci kez veremez, yalnızca ilk oydan sonra 10 dakika içinde oyunu değiştirebilir (karar 12).
 - Oy vermeden önce sonuçlar HTML'de ve JSON'da **yer almaz**; verdikten sonra görünür ve sayfa yenilenince korunur.
 - Sahip kendi anketinde sonuçları baştan görür ve (tek) oy verebilir; oy verince seçimi ✓ ile işaretlenir ve çubuklar tıklanamaz olur (karar 7).
 - Başka bir ankete ait `option_id` reddedilir.
@@ -275,5 +280,5 @@ if DATABASES["default"]["ENGINE"].endswith("postgresql"):
 2. ✅ Kötüye kullanım önlemleri: oy ve kayıt için hız sınırı, IP özeti ile ek tekilleştirme, anket bildirme (karar 8); güvenlik incelemesi düzeltmeleri: giriş hız sınırı, oy sınırı yarışı, ortak tarayıcı (karar 11).
 3. ✅ Akışta "Popüler" sıralaması ve "oylamadıklarım" filtresi.
 4. ✅ Kullanıcı profil sayfası (`/u/<kullaniciadi>/`).
-5. Anket bitiş süresi, oy değiştirme.
+5. ✅ Anket bitiş süresi ve oy değiştirme (karar 12).
 6. E-posta doğrulama, özel alan adı.

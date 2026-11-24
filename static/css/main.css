@@ -400,6 +400,7 @@ main:focus { outline: none; }
 .poll-card__question a:hover { text-decoration: underline; }
 
 .poll-card__footer { margin: var(--space-3) 0 0; color: var(--color-text-muted); font-size: var(--text-sm); }
+.poll-card__closed { font-weight: var(--weight-semibold); white-space: nowrap; }
 .poll-card__note { margin: var(--space-3) 0 0; color: var(--color-text-muted); font-size: var(--text-sm); }
 .poll-card__error { margin: var(--space-3) 0 0; color: var(--color-danger); font-size: var(--text-sm); font-weight: var(--weight-semibold); }
 
@@ -493,6 +494,8 @@ main:focus { outline: none; }
   border-width: var(--border-option-selected);
   padding: calc(var(--space-3) - 1px) calc(var(--space-4) - 1px);
 }
+/* A selected bar that is a button (the vote can still be changed) gets its padding from the button. */
+.option--result.is-selected:has(.option__button) { padding: 0; }
 
 .option__fill {
   position: absolute;
